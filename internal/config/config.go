@@ -1,0 +1,189 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+type Config struct {
+	Agent struct {
+		Name         string   `yaml:"name"`
+		Language     string   `yaml:"language"`
+		LocalFirst   bool     `yaml:"local_first"`
+		VoiceEnabled bool     `yaml:"voice_enabled"`
+		WakeWords    []string `yaml:"wake_words"`
+	} `yaml:"agent"`
+	Model struct {
+		Provider    string  `yaml:"provider"`
+		BaseURL     string  `yaml:"base_url"`
+		Model       string  `yaml:"model"`
+		Temperature float64 `yaml:"temperature"`
+		ToolCalling bool    `yaml:"tool_calling"`
+	} `yaml:"model"`
+	Database struct {
+		Provider    string `yaml:"provider"`
+		Path        string `yaml:"path"`
+		EnableFTS   bool   `yaml:"enable_fts"`
+		AutoMigrate bool   `yaml:"auto_migrate"`
+	} `yaml:"database"`
+	Skills struct {
+		Path                 string `yaml:"path"`
+		Format               string `yaml:"format"`
+		AutoDiscover         bool   `yaml:"auto_discover"`
+		RemoteInstallEnabled bool   `yaml:"remote_install_enabled"`
+	} `yaml:"skills"`
+	Mcp struct {
+		Enabled    bool   `yaml:"enabled"`
+		ConfigPath string `yaml:"config_path"`
+	} `yaml:"mcp"`
+	Files struct {
+		AllowedRoots []string `yaml:"allowed_roots"`
+		Ignore       []string `yaml:"ignore"`
+		MaxDepth     int      `yaml:"max_depth"`
+	} `yaml:"files"`
+	Security struct {
+		ConfirmHighRisk bool     `yaml:"confirm_high_risk"`
+		BlockedPaths    []string `yaml:"blocked_paths"`
+	} `yaml:"security"`
+	Voice struct {
+		PiperModel     string  `yaml:"piper_model"`
+		WhisperModel   string  `yaml:"whisper_model"`
+		VadThreshold   float64 `yaml:"vad_threshold"`
+		WhisperThreads int     `yaml:"whisper_threads"`
+		WhisperFlags   string  `yaml:"whisper_flags"`
+	} `yaml:"voice"`
+}
+
+// LoadConfig lee o crea el archivo rbot.yaml con valores por defecto
+func LoadConfig(path string) (*Config, error) {
+	// Comprobar si existe
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		// Crear carpeta config
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return nil, err
+		}
+		
+		// Crear valores por defecto
+		defaultConfig := &Config{}
+		defaultConfig.Agent.Name = "RBot"
+		defaultConfig.Agent.Language = "es"
+		defaultConfig.Agent.LocalFirst = true
+		defaultConfig.Agent.VoiceEnabled = true
+		defaultConfig.Agent.WakeWords = []string{"oye ronald", "ey ronald", "go ronald", "hola ronald", "ronald", "rbot"}
+
+		defaultConfig.Model.Provider = "ollama"
+		defaultConfig.Model.BaseURL = "http://localhost:11434"
+		defaultConfig.Model.Model = "qwen2.5:7b" // Modelo compatible con tool calling
+		defaultConfig.Model.Temperature = 0.2
+		defaultConfig.Model.ToolCalling = true
+
+		defaultConfig.Database.Provider = "sqlite"
+		defaultConfig.Database.Path = "~/.local/share/rbot/rbot.db"
+		defaultConfig.Database.EnableFTS = true
+		defaultConfig.Database.AutoMigrate = true
+
+		defaultConfig.Skills.Path = "~/.local/share/rbot/skills"
+		defaultConfig.Skills.Format = "SKILL.md"
+		defaultConfig.Skills.AutoDiscover = true
+		defaultConfig.Skills.RemoteInstallEnabled = true
+
+		defaultConfig.Mcp.Enabled = true
+		defaultConfig.Mcp.ConfigPath = "mcp/mcp_config.json"
+
+		// Directorio actual e home
+		home, _ := os.UserHomeDir()
+		wd, err := os.Getwd()
+		defaultConfig.Files.AllowedRoots = []string{}
+		if err == nil && wd != "" {
+			defaultConfig.Files.AllowedRoots = append(defaultConfig.Files.AllowedRoots, wd)
+		}
+		if home != "" {
+			defaultConfig.Files.AllowedRoots = append(defaultConfig.Files.AllowedRoots, filepath.Join(home, "Documentos"))
+			defaultConfig.Files.AllowedRoots = append(defaultConfig.Files.AllowedRoots, filepath.Join(home, "Descargas"))
+			defaultConfig.Files.AllowedRoots = append(defaultConfig.Files.AllowedRoots, filepath.Join(home, "Escritorio"))
+		}
+
+		defaultConfig.Files.Ignore = []string{"node_modules", ".git", ".next", "dist", "build", "venv", "__pycache__"}
+		defaultConfig.Files.MaxDepth = 6
+
+		defaultConfig.Security.ConfirmHighRisk = true
+		defaultConfig.Security.BlockedPaths = []string{
+			"~/.ssh", "~/.gnupg", "~/.local/share/keyrings", "**/.env",
+		}
+
+		defaultConfig.Voice.PiperModel = "voices/es_ES-davefx-medium.onnx"
+		defaultConfig.Voice.WhisperModel = "models/ggml-tiny.bin"
+		defaultConfig.Voice.VadThreshold = 550.0
+		defaultConfig.Voice.WhisperThreads = 8
+		defaultConfig.Voice.WhisperFlags = ""
+
+		data, err := yaml.Marshal(defaultConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := os.WriteFile(path, data, 0644); err != nil {
+			return nil, err
+		}
+
+		NormalizeConfig(defaultConfig)
+		return defaultConfig, nil
+	}
+
+	// Leer del disco
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var conf Config
+	if err := yaml.Unmarshal(data, &conf); err != nil {
+		return nil, err
+	}
+
+	NormalizeConfig(&conf)
+	return &conf, nil
+}
+
+// NormalizeConfig expande tildes/home, rutas relativas como '.' y las normaliza a rutas absolutas limpias.
+func NormalizeConfig(conf *Config) {
+	home, _ := os.UserHomeDir()
+
+	// Normalizar AllowedRoots
+	for i, root := range conf.Files.AllowedRoots {
+		// Expandir ~
+		if strings.HasPrefix(root, "~") && home != "" {
+			root = filepath.Join(home, root[1:])
+		}
+		// Convertir a absoluto y limpiar
+		absPath, err := filepath.Abs(root)
+		if err == nil {
+			conf.Files.AllowedRoots[i] = filepath.Clean(absPath)
+		} else {
+			conf.Files.AllowedRoots[i] = filepath.Clean(root)
+		}
+	}
+
+	// Normalizar BlockedPaths
+	for i, blocked := range conf.Security.BlockedPaths {
+		// Expandir ~
+		if strings.HasPrefix(blocked, "~") && home != "" {
+			blocked = filepath.Join(home, blocked[1:])
+		}
+		// Si no tiene comodines, convertir a absoluto
+		if !strings.Contains(blocked, "*") {
+			absPath, err := filepath.Abs(blocked)
+			if err == nil {
+				conf.Security.BlockedPaths[i] = filepath.Clean(absPath)
+			} else {
+				conf.Security.BlockedPaths[i] = filepath.Clean(blocked)
+			}
+		} else {
+			conf.Security.BlockedPaths[i] = filepath.Clean(blocked)
+		}
+	}
+}
+

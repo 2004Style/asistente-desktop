@@ -1,0 +1,62 @@
+agent:
+    name: RBot
+    language: es
+    local_first: true
+    voice_enabled: true
+    wake_words:
+        - oye ronald
+        - ey ronald
+        - go ronald
+        - hola ronald
+        - ronald
+        - rbot
+model:
+    provider: ollama
+    base_url: http://localhost:11434
+    model: qwen2.5:7b
+    temperature: 0.2
+    tool_calling: true
+database:
+    provider: sqlite
+    path: ~/.local/share/rbot/rbot.db
+    enable_fts: true
+    auto_migrate: true
+skills:
+    path: ~/.local/share/rbot/skills
+    format: SKILL.md
+    auto_discover: true
+    remote_install_enabled: true
+mcp:
+    enabled: true
+    config_path: mcp/mcp_config.json
+files:
+    allowed_roots:
+        - .
+        - ~/Documentos
+        - ~/Descargas
+        - ~/Escritorio
+    ignore:
+        - node_modules
+        - .git
+        - .next
+        - dist
+        - build
+        - venv
+        - __pycache__
+        - .cache
+        - .local/share/Trash
+        - snap
+    max_depth: 6
+security:
+    confirm_high_risk: true
+    blocked_paths:
+        - ~/.ssh
+        - ~/.gnupg
+        - ~/.local/share/keyrings
+        - '**/.env'
+voice:
+    piper_model: voices/es_ES-davefx-medium.onnx
+    whisper_model: models/ggml-tiny.bin
+    vad_threshold: 550.0
+    whisper_threads: 8
+    whisper_flags: ""

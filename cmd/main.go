@@ -1,0 +1,566 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"rbot/internal/agent"
+	"rbot/internal/apps"
+	"rbot/internal/config"
+	"rbot/internal/db"
+	"rbot/internal/files"
+	"rbot/internal/mcp"
+	"rbot/internal/ollama"
+	"rbot/internal/skills"
+	"rbot/internal/voice"
+)
+
+func main() {
+	// Definir ruta del config rbot.yaml
+	configPath := "config/rbot.yaml"
+	conf, err := config.LoadConfig(configPath)
+	if err != nil {
+		log.Fatalf("Error al cargar la configuración: %v", err)
+	}
+
+	// Inicializar Base de Datos
+	sqlitePath := db.ExpandPath(conf.Database.Path)
+	database, err := db.InitDB(sqlitePath)
+	if err != nil {
+		log.Fatalf("Error al inicializar la base de datos: %v", err)
+	}
+	defer database.Close()
+
+	// Autodescubrimiento y auto-habilitación de habilidades
+	if conf.Skills.AutoDiscover {
+		skillsPath := db.ExpandPath(conf.Skills.Path)
+		if err := skills.ScanSkills(database, skillsPath); err == nil {
+			// Auto-habilitar todas al iniciar en segundo plano o de forma directa
+			_, _ = database.Exec("UPDATE skills SET enabled = 1")
+		} else {
+			log.Printf("[Warning] Error en auto-discovery de skills: %v", err)
+		}
+	}
+
+	// Auto-indexar aplicaciones de escritorio si la tabla está vacía
+	var countApps int
+	if err := database.QueryRow("SELECT COUNT(*) FROM app_launchers").Scan(&countApps); err == nil && countApps == 0 {
+		log.Println("[Auto-Index] La base de datos de aplicaciones está vacía. Escaneando en segundo plano...")
+		go func() {
+			if err := apps.ScanApplications(database); err != nil {
+				log.Printf("[Auto-Index] Error al indexar aplicaciones: %v", err)
+			} else {
+				log.Println("[Auto-Index] Aplicaciones de escritorio indexadas con éxito.")
+			}
+		}()
+	}
+
+	// Auto-indexar rutas de archivos permitidas si la tabla está vacía
+	var countPaths int
+	if err := database.QueryRow("SELECT COUNT(*) FROM path_entries").Scan(&countPaths); err == nil && countPaths == 0 {
+		log.Println("[Auto-Index] La base de datos de archivos está vacía. Indexando en segundo plano...")
+		go func() {
+			err := files.IndexRoots(database, conf.Files.AllowedRoots, conf.Security.BlockedPaths, conf.Files.Ignore, conf.Files.MaxDepth)
+			if err != nil {
+				log.Printf("[Auto-Index] Error al indexar rutas de archivos: %v", err)
+			} else {
+				log.Println("[Auto-Index] Rutas de archivos indexadas con éxito.")
+			}
+		}()
+	}
+
+	// Inicializar Manager de MCP (solo se levanta para modos que lo necesitan)
+	mcpManager := mcp.NewServerManager()
+	defer mcpManager.CloseAll()
+
+	// Configurar parámetros globales de voz
+	voice.WhisperThreads = conf.Voice.WhisperThreads
+	voice.WhisperFlags = conf.Voice.WhisperFlags
+
+	// Inicializar Cliente Ollama
+	ollamaClient := ollama.NewClient(conf.Model.BaseURL, conf.Model.Model)
+	ollamaClient.Temperature = conf.Model.Temperature
+	ollamaClient.OnTextChunk = func(chunk string) {
+		fmt.Print(chunk)
+	}
+
+	// Inicializar Orquestador del Agente
+	orchestrator := agent.NewOrchestrator(
+		database,
+		ollamaClient,
+		mcpManager,
+		conf.Security.BlockedPaths,
+		conf.Files.AllowedRoots,
+		conf.Agent.Name,
+	)
+
+	// Verificar argumentos CLI
+	if len(os.Args) < 2 {
+		printUsage()
+		return
+	}
+
+	cmd := strings.ToLower(os.Args[1])
+
+	// Iniciar MCP solo para modos que realmente lo necesitan (voice, mcp)
+	// Para chat, la mayoría de acciones directas no usan MCP y solo lo bloquearía al salir
+	if conf.Mcp.Enabled && (cmd == "voice" || cmd == "mcp") {
+		mcpConfig := db.ExpandPath(conf.Mcp.ConfigPath)
+		go func() {
+			if err := mcpManager.Bootstrap(mcpConfig); err != nil {
+				log.Printf("[MCP] Advertencia: %v", err)
+			}
+		}()
+	}
+
+	switch cmd {
+	case "chat":
+		if len(os.Args) < 3 {
+			log.Fatal("Por favor ingresa tu mensaje para el agente.")
+		}
+		msg := os.Args[2]
+
+		// Iniciar motor de voz si está habilitado por voz
+		if conf.Agent.VoiceEnabled {
+			vadThresh := conf.Voice.VadThreshold
+			if vadThresh <= 0 {
+				vadThresh = 550.0
+			}
+			_ = voice.StartVoiceEngine(".", conf.Voice.PiperModel, conf.Voice.WhisperModel, vadThresh)
+			defer voice.StopVoiceEngine()
+		}
+
+		var printedPrefix bool = false
+		ollamaClient.OnTextChunk = func(chunk string) {
+			if !printedPrefix {
+				fmt.Printf("\n%s: ", conf.Agent.Name)
+				printedPrefix = true
+			}
+			fmt.Print(chunk)
+		}
+
+		ctx := context.Background()
+		respuesta, err := orchestrator.Chat(ctx, msg, nil)
+		if err != nil {
+			log.Fatalf("Error en chat: %v", err)
+		}
+
+		if !printedPrefix {
+			fmt.Printf("\n%s: %s\n", conf.Agent.Name, respuesta)
+		} else {
+			fmt.Println()
+		}
+		if conf.Agent.VoiceEnabled {
+			_ = voice.Speak(respuesta)
+		}
+
+	case "index":
+		if len(os.Args) < 3 {
+			log.Fatal("Especifica qué indexar: 'paths' o 'apps'.")
+		}
+		subCmd := strings.ToLower(os.Args[2])
+		if subCmd == "paths" {
+			log.Println("Indexando archivos y carpetas del disco...")
+			err := files.IndexRoots(database, conf.Files.AllowedRoots, conf.Security.BlockedPaths, conf.Files.Ignore, conf.Files.MaxDepth)
+			if err != nil {
+				log.Fatalf("Error indexando rutas: %v", err)
+			}
+			log.Println("Indexación de archivos finalizada con éxito.")
+		} else if subCmd == "apps" {
+			log.Println("Escaneando aplicaciones de escritorio (.desktop)...")
+			err := apps.ScanApplications(database)
+			if err != nil {
+				log.Fatalf("Error indexando aplicaciones: %v", err)
+			}
+			log.Println("Indexación de aplicaciones finalizada.")
+		} else {
+			log.Fatalf("Comando de indexación desconocido: '%s'", subCmd)
+		}
+
+	case "skills":
+		if len(os.Args) < 3 {
+			log.Fatal("Uso: rbot skills [scan|list|enable|disable]")
+		}
+		subCmd := strings.ToLower(os.Args[2])
+		skillsPath := db.ExpandPath(conf.Skills.Path)
+
+		switch subCmd {
+		case "scan":
+			log.Printf("Escaneando carpeta de habilidades en: %s", skillsPath)
+			if err := skills.ScanSkills(database, skillsPath); err != nil {
+				log.Fatalf("Error al escanear skills: %v", err)
+			}
+			log.Println("Escaneo finalizado.")
+		case "list":
+			listSkills(database)
+		case "enable":
+			if len(os.Args) < 4 {
+				log.Fatal("Especifica el nombre de la habilidad a habilitar.")
+			}
+			name := os.Args[3]
+			if err := skills.EnableSkill(database, name); err != nil {
+				log.Fatalf("Error: %v", err)
+			}
+			log.Printf("Habilidad '%s' habilitada correctamente.", name)
+		case "enable-all":
+			_, err := database.Exec("UPDATE skills SET enabled = 1")
+			if err != nil {
+				log.Fatalf("Error al habilitar todas las habilidades: %v", err)
+			}
+			log.Println("Todas las habilidades registradas han sido habilitadas con éxito.")
+		case "disable":
+			if len(os.Args) < 4 {
+				log.Fatal("Especifica el nombre de la habilidad a deshabilitar.")
+			}
+			name := os.Args[3]
+			if err := skills.DisableSkill(database, name); err != nil {
+				log.Fatalf("Error: %v", err)
+			}
+			log.Printf("Habilidad '%s' deshabilitada.", name)
+		case "add":
+			if len(os.Args) < 4 {
+				log.Fatal("Especifica la URL del repositorio Git de la habilidad a descargar.")
+			}
+			repoURL := os.Args[3]
+			parts := strings.Split(strings.TrimSuffix(repoURL, "/"), "/")
+			folderName := strings.TrimSuffix(parts[len(parts)-1], ".git")
+			targetPath := filepath.Join(skillsPath, folderName)
+
+			if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+				log.Fatalf("Error: La carpeta '%s' ya existe.", targetPath)
+			}
+
+			log.Printf("Descargando habilidad desde %s en %s...", repoURL, targetPath)
+			cmd := exec.Command("git", "clone", repoURL, targetPath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				log.Fatalf("Error al descargar skill: %v", err)
+			}
+
+			if err := skills.ScanSkills(database, skillsPath); err != nil {
+				log.Fatalf("Error al escanear skills: %v", err)
+			}
+			log.Printf("Habilidad descargada y registrada con éxito.")
+
+		case "create":
+			if len(os.Args) < 4 {
+				log.Fatal("Especifica el nombre de la habilidad a crear.")
+			}
+			name := os.Args[3]
+			targetPath := filepath.Join(skillsPath, name)
+
+			if _, err := os.Stat(targetPath); !os.IsNotExist(err) {
+				log.Fatalf("Error: La habilidad '%s' ya existe.", name)
+			}
+
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				log.Fatalf("Error al crear directorio: %v", err)
+			}
+
+			skillMdContent := fmt.Sprintf(`---
+name: %s
+description: "Habilidad para automatizar tareas relacionadas con %s"
+version: 1.0.0
+author: rbot
+risk_level: low
+voice_triggers:
+  - "activar %s"
+permissions:
+  - "exec:echo"
+---
+
+# Instrucciones
+
+Cuando el usuario pida "%s":
+1. Usa la herramienta del sistema correspondiente
+2. Responde confirmando que se ha ejecutado la acción de forma educada
+`, name, name, name, name)
+
+			skillMdPath := filepath.Join(targetPath, "SKILL.md")
+			if err := os.WriteFile(skillMdPath, []byte(skillMdContent), 0644); err != nil {
+				log.Fatalf("Error al escribir SKILL.md: %v", err)
+			}
+
+			if err := skills.ScanSkills(database, skillsPath); err != nil {
+				log.Fatalf("Error al registrar skill: %v", err)
+			}
+			log.Printf("Habilidad '%s' creada, escrita en '%s' y registrada correctamente.", name, skillMdPath)
+
+		default:
+			log.Fatalf("Subcomando de skills desconocido: '%s'. Modos válidos: scan, list, enable, disable, add, create", subCmd)
+		}
+
+	case "mcp":
+		if len(os.Args) < 3 || strings.ToLower(os.Args[2]) != "list" {
+			log.Fatal("Uso: rbot mcp list")
+		}
+		listMcpTools(context.Background(), mcpManager)
+
+	case "voice":
+		log.Println("--------------------------------------------------")
+		log.Printf("Iniciando %s en Modo Conversación de Voz Continua\n", conf.Agent.Name)
+		log.Printf("Palabras de activación: %v\n", conf.Agent.WakeWords)
+		log.Println("--------------------------------------------------")
+
+		vadThresh := conf.Voice.VadThreshold
+		if vadThresh <= 0 {
+			vadThresh = 550.0
+		}
+		if err := voice.StartVoiceEngine(".", conf.Voice.PiperModel, conf.Voice.WhisperModel, vadThresh); err != nil {
+			log.Fatalf("Error al iniciar motor de voz: %v", err)
+		}
+		defer voice.StopVoiceEngine()
+
+		var history []ollama.Message
+		isAwake := false
+		lastInteraction := time.Now()
+		timeoutDuration := 3 * time.Minute // 3 minutos de inactividad antes de desactivarse automáticamente
+
+		_ = voice.Speak("Sistema inicializado. Estoy listo.")
+
+		for {
+			// Comprobar si expiró por inactividad
+			if isAwake && time.Since(lastInteraction) > timeoutDuration {
+				isAwake = false
+				_ = voice.Speak("Vuelvo al modo de espera por inactividad, señor.")
+			}
+
+			log.Println("[Modo Voz] Escuchando...")
+			texto, err := voice.Listen()
+			if err != nil {
+				log.Printf("Error al escuchar: %v", err)
+				time.Sleep(1 * time.Second)
+				continue
+			}
+
+			texto = strings.TrimSpace(texto)
+			textoLower := strings.ToLower(texto)
+
+			// Ignorar etiquetas de ruido de Whisper (ej. [Música], [Risas], (silencio))
+			if texto == "" || textoLower == "[blank_audio]" ||
+				(strings.HasPrefix(textoLower, "[") && strings.HasSuffix(textoLower, "]")) ||
+				(strings.HasPrefix(textoLower, "(") && strings.HasSuffix(textoLower, ")")) {
+				continue
+			}
+
+			// Filtrar alucinaciones de Whisper basadas en silencio/ruido de fondo
+			if isWhisperHallucination(texto) {
+				continue
+			}
+
+			// 1. Comprobar palabras de activación (despertar)
+			triggerDetected := ""
+			for _, ww := range conf.Agent.WakeWords {
+				wwLower := strings.ToLower(ww)
+				if strings.Contains(textoLower, wwLower) {
+					triggerDetected = wwLower
+					break
+				}
+			}
+
+			// Si RBot está dormido y no se ha dicho la wake word, ignorar silenciosamente sin imprimir nada
+			if !isAwake && triggerDetected == "" {
+				continue
+			}
+
+			// Loguear solo cuando RBot está despierto o se activa
+			log.Printf("Dijiste: '%s'", texto)
+
+			// 2. Comprobar palabras de desactivación (sueño)
+			isSleepWord := false
+			sleepWords := []string{
+				"eso es todo", "gracias", "vete a dormir", "duérmete",
+				"silencio", "apágate", "desactívate", "nada más",
+				"eso es todo por ahora", "desconéctate",
+			}
+			for _, sw := range sleepWords {
+				if strings.Contains(textoLower, sw) {
+					isSleepWord = true
+					break
+				}
+			}
+
+			if isSleepWord && isAwake {
+				isAwake = false
+				_ = voice.Speak("Entendido señor, vuelvo al modo de espera.")
+				continue
+			}
+
+			cmdLimpio := ""
+			if triggerDetected != "" {
+				isAwake = true
+				lastInteraction = time.Now()
+
+				// Extraer el comando que acompaña a la wake word
+				partes := strings.SplitN(textoLower, triggerDetected, 2)
+				if len(partes) > 1 {
+					cmdLimpio = cleanCommand(partes[1])
+				}
+
+				if cmdLimpio == "" {
+					// El usuario sólo dijo la wake word, saludamos y esperamos comandos directos en la próxima iteración
+					voice.PauseMedia()
+					_ = voice.Speak("Hola señor, ¿en qué le puedo servir?")
+					voice.ResumeMedia()
+					continue
+				}
+			} else if isAwake {
+				// RBot ya está despierto: toda la frase es el comando
+				cmdLimpio = texto
+				lastInteraction = time.Now()
+			}
+
+			// 3. Procesar el comando si hay uno limpio
+			if cmdLimpio != "" {
+				voice.PauseMedia()
+				log.Printf("[Modo Voz] Procesando orden: '%s'", cmdLimpio)
+
+				var printedPrefix bool = false
+				ollamaClient.OnTextChunk = func(chunk string) {
+					if !printedPrefix {
+						fmt.Printf("\n%s: ", conf.Agent.Name)
+						printedPrefix = true
+					}
+					fmt.Print(chunk)
+				}
+
+				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				respuesta, err := orchestrator.Chat(ctx, cmdLimpio, history)
+				cancel()
+
+				if err != nil {
+					log.Printf("Error al procesar chat: %v", err)
+					_ = voice.Speak("Disculpa, tuve un problema interno al procesar esa orden.")
+					voice.ResumeMedia()
+					continue
+				}
+				if ollamaClient.OnTextChunk != nil {
+					fmt.Println()
+				}
+				_ = voice.Speak(respuesta)
+				voice.ResumeMedia()
+
+				// Guardar en el historial
+				history = append(history, ollama.Message{Role: "user", Content: cmdLimpio})
+				history = append(history, ollama.Message{Role: "assistant", Content: respuesta})
+				if len(history) > 10 {
+					history = history[2:]
+				}
+			}
+		}
+
+	default:
+		fmt.Printf("Comando desconocido: '%s'\n", cmd)
+		printUsage()
+	}
+}
+
+func printUsage() {
+	fmt.Println("Uso: rbot <comando> [argumentos]")
+	fmt.Println("\nComandos disponibles:")
+	fmt.Println("  chat \"<mensaje>\"            Envía un mensaje directo al agente (conversación).")
+	fmt.Println("  index paths                 Indexa archivos y carpetas del disco.")
+	fmt.Println("  index apps                  Indexa lanzadores de aplicaciones del escritorio.")
+	fmt.Println("  skills scan                 Busca e indexa habilidades SKILL.md.")
+	fmt.Println("  skills list                 Muestra la lista de habilidades instaladas.")
+	fmt.Println("  skills enable <nombre>      Habilita una habilidad.")
+	fmt.Println("  skills disable <nombre>     Deshabilita una habilidad.")
+	fmt.Println("  mcp list                    Muestra las herramientas expuestas por servidores MCP.")
+	fmt.Println("  voice                       Inicia el agente en escucha continua de voz por micrófono.")
+}
+
+func listSkills(db *sql.DB) {
+	rows, err := db.Query("SELECT name, description, risk_level, enabled FROM skills")
+	if err != nil {
+		log.Fatalf("Error al leer skills: %v", err)
+	}
+	defer rows.Close()
+
+	fmt.Println("\n--- HABILIDADES REGISTRADAS ---")
+	for rows.Next() {
+		var name, desc, risk string
+		var enabled int
+		if err := rows.Scan(&name, &desc, &risk, &enabled); err == nil {
+			status := "deshabilitada"
+			if enabled == 1 {
+				status = "habilitada"
+			}
+			fmt.Printf("- %s (Riesgo: %s) [%s]: %s\n", name, risk, status, desc)
+		}
+	}
+}
+
+func listMcpTools(ctx context.Context, mcpManager *mcp.ServerManager) {
+	mcpManager.Mu.Lock()
+	defer mcpManager.Mu.Unlock()
+
+	fmt.Println("\n--- SERVIDORES Y HERRAMIENTAS MCP ---")
+	for srvName, client := range mcpManager.Clients {
+		status := "inactivo"
+		if client.IsActive {
+			status = "activo"
+		}
+		fmt.Printf("\nServidor: %s [%s]\n", srvName, status)
+
+		if client.IsActive {
+			tools, err := client.ListTools(ctx)
+			if err != nil {
+				fmt.Printf("  Error listando herramientas: %v\n", err)
+				continue
+			}
+			for _, t := range tools {
+				fmt.Printf("  * %s: %s\n", t.Name, t.Description)
+			}
+		}
+	}
+}
+
+// cleanCommand limpia puntuación y remueve letras remanentes (como 'o' en 'Ronaldo') para extraer el comando de voz limpio.
+func cleanCommand(cmd string) string {
+	cmd = strings.TrimSpace(cmd)
+	// Remover signos de puntuación iniciales/finales
+	cmd = strings.TrimFunc(cmd, func(r rune) bool {
+		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
+	})
+	cmd = strings.TrimSpace(cmd)
+
+	// Manejar el caso de "Ronaldo" cuando la wake word es "ronald"
+	// Si el comando restante empieza con "o " o "o," o es exactamente "o"
+	if cmd == "o" {
+		cmd = ""
+	} else if strings.HasPrefix(cmd, "o ") {
+		cmd = strings.TrimPrefix(cmd, "o ")
+	} else if strings.HasPrefix(cmd, "o,") {
+		cmd = strings.TrimPrefix(cmd, "o,")
+	}
+
+	// Limpiar puntuación residual de nuevo
+	cmd = strings.TrimFunc(cmd, func(r rune) bool {
+		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
+	})
+	return strings.TrimSpace(cmd)
+}
+
+// isWhisperHallucination detecta y descarta alucinaciones típicas de Whisper.
+func isWhisperHallucination(text string) bool {
+	t := strings.ToLower(strings.Trim(text, " .,?!¡¿"))
+	if t == "" || t == "blank_audio" || t == "gracias" || t == "gracias por ver" ||
+		t == "subtítulos" || t == "subtítulos por" || t == "subtitles" || t == "subtitles by" ||
+		t == "thank you" || t == "thank you for watching" || t == "amara" || t == "amara.org" ||
+		t == "y" || t == "sí" || t == "si" || t == "hola" || t == "adiós" || t == "bye" {
+		return true
+	}
+	// Si contiene frases específicas de subtítulos de Whisper
+	if strings.Contains(t, "subtítulos por") || strings.Contains(t, "subtitles by") || strings.Contains(t, "amara.org") {
+		return true
+	}
+	return false
+}

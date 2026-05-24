@@ -1,0 +1,30 @@
+# Binarios
+rbot
+dist/
+bin/
+
+# Modelos locales de IA (muy grandes para Git)
+models/
+voices/
+
+# Archivos de audio temporales generados al hablar/escuchar
+*.wav
+
+# Bases de datos SQLite locales (en caso de guardarse en el workspace)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Entornos virtuales e IDEs
+venv/
+.venv/
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Archivos del sistema
+.DS_Store
+
+report-test.txt
