@@ -54,7 +54,7 @@ asistente/ (Directorio Raíz)
 ├── mcp/
 │   └── mcp_config.json       # Configuración de servidores MCP stdio
 │
-├── dist/
+├── bin/
 │   └── rbot         # Binario compilado listo para usar
 └── docs/                     # Carpeta de documentación del proyecto
     ├── dependencies.md       # Guía de dependencias necesarias del sistema y modelos
@@ -80,7 +80,7 @@ Para entender cómo funciona la base de datos local de SQLite, la indexación in
 *   [db_y_mcp_config.md](docs/db_y_mcp_config.md)
 
 ### Compilación e Instalación Rápida
-Puedes descargar dependencias y compilar todo automáticamente en la carpeta `dist/` usando el script provisto:
+Puedes descargar dependencias y compilar todo automáticamente en la carpeta `bin/` usando el script provisto:
 ```bash
 chmod +x setup_and_build.sh
 ./setup_and_build.sh
@@ -90,33 +90,33 @@ chmod +x setup_and_build.sh
 
 ## 🚀 Guía de Uso Rápido
 
-Al ejecutar `./dist/rbot` por primera vez sin argumentos, se autogenera la configuración recomendada por defecto en `config/rbot.yaml`.
+Al ejecutar `./bin/rbot` por primera vez sin argumentos, se autogenera la configuración recomendada por defecto en `config/rbot.yaml`.
 
 ### 1. Indexar el Sistema
 Antes de comenzar, permite que RBot indexe tus archivos y programas instalados:
 ```bash
 # Indexa los archivos de tus carpetas permitidas en SQLite
-./dist/rbot index paths
+./bin/rbot index paths
 
 # Indexa tus accesos directos de aplicaciones (.desktop)
-./dist/rbot index apps
+./bin/rbot index apps
 
 # Escanea tu carpeta local de habilidades instaladas
-./dist/rbot skills scan
+./bin/rbot skills scan
 ```
 
 ### 2. Ejecutar mediante comandos de chat (CLI)
 Interactúa directamente mediante texto:
 ```bash
-./dist/rbot chat "Abre mi proyecto Convertsystems en VS Code"
-./dist/rbot chat "Recuerda que mi correo es usuario@example.com en la categoría personal"
-./dist/rbot chat "Abre el navegador e ingresa a whatsapp web"
+./bin/rbot chat "Abre mi proyecto Convertsystems en VS Code"
+./bin/rbot chat "Recuerda que mi correo es usuario@example.com en la categoría personal"
+./bin/rbot chat "Abre el navegador e ingresa a whatsapp web"
 ```
 
 ### 3. Activar el Modo de Voz Continuo (Espectacular 🎙️)
 Haz que RBot te escuche constantemente. Puedes despertarlo utilizando cualquiera de las palabras clave configuradas (`oye ronald`, `ey ronald`, `go ronald`, `ronald`, `rbot`):
 ```bash
-./dist/rbot voice
+./bin/rbot voice
 ```
 Una vez que despiertas a RBot, se mantendrá en **escucha continua y activa** (modo conversación). Ya no es necesario repetir la palabra clave para cada orden posterior.
 

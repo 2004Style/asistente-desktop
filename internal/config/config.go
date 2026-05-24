@@ -65,7 +65,7 @@ func LoadConfig(path string) (*Config, error) {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return nil, err
 		}
-		
+
 		// Crear valores por defecto
 		defaultConfig := &Config{}
 		defaultConfig.Agent.Name = "RBot"
@@ -106,7 +106,7 @@ func LoadConfig(path string) (*Config, error) {
 			defaultConfig.Files.AllowedRoots = append(defaultConfig.Files.AllowedRoots, filepath.Join(home, "Escritorio"))
 		}
 
-		defaultConfig.Files.Ignore = []string{"node_modules", ".git", ".next", "dist", "build", "venv", "__pycache__"}
+		defaultConfig.Files.Ignore = []string{"node_modules", ".git", ".next", "bin", "build", "venv", "__pycache__"}
 		defaultConfig.Files.MaxDepth = 6
 
 		defaultConfig.Security.ConfirmHighRisk = true
@@ -186,4 +186,3 @@ func NormalizeConfig(conf *Config) {
 		}
 	}
 }
-

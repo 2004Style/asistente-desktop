@@ -78,17 +78,17 @@ else
 fi
 
 # 3. Compilar RBot
-echo -e "\n${YELLOW}[3/4] Creando directorio dist/ y compilando RBot...${NC}"
-mkdir -p dist
+echo -e "\n${YELLOW}[3/4] Creando directorio bin/ y compilando RBot...${NC}"
+mkdir -p bin
 
 # Compilar
-go build -o dist/rbot cmd/main.go
-echo -e "${GREEN}¡Binario compilado con éxito en 'dist/rbot'!${NC}"
+go build -o bin/rbot cmd/main.go
+echo -e "${GREEN}¡Binario compilado con éxito en 'bin/rbot'!${NC}"
 
 # 4. Finalizado
 echo -e "\n${BLUE}====================================================${NC}"
 echo -e "${GREEN} ¡Listo! RBot está preparado para ejecutarse.         ${NC}"
 echo -e "${BLUE}====================================================${NC}"
 echo -e "Puedes iniciar el motor de voz ejecutando:"
-echo -e "  ${YELLOW}./dist/rbot voice${NC}"
+echo -e "  ${YELLOW}./bin/rbot voice${NC}"
 echo -e "===================================================="

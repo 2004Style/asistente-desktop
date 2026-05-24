@@ -12,7 +12,7 @@ Si ya tienes las herramientas básicas del sistema (o si deseas instalar todo de
 3. Descarga la voz neuronal de Piper (`es_ES-davefx-medium.onnx` y su `.json`).
 4. Descarga el modelo optimizado de transcripción rápida Whisper (`ggml-tiny.bin`).
 5. Configura e inicializa el directorio local de habilidades de usuario en `~/.local/share/rbot/skills` copiando las habilidades por defecto del repositorio.
-6. Compila el binario `rbot` optimizado en la carpeta `dist/rbot`.
+6. Compila el binario `rbot` optimizado en la carpeta `bin/rbot`.
 
 ```bash
 # Dar permisos de ejecución
@@ -24,7 +24,7 @@ chmod +x setup_and_build.sh
 
 Una vez finalizado, puedes iniciar el motor en modo de voz usando:
 ```bash
-./dist/rbot voice
+./bin/rbot voice
 ```
 
 ---
@@ -128,8 +128,8 @@ Desde la carpeta raíz del proyecto de RBot:
 Compila el ejecutable en Go. Desde el directorio raíz del proyecto:
 ```bash
 # Crear directorio de binarios y compilar
-mkdir -p dist
-go build -o dist/rbot cmd/main.go
+mkdir -p bin
+go build -o bin/rbot cmd/main.go
 ```
 
 ---
@@ -142,7 +142,7 @@ go build -o dist/rbot cmd/main.go
    ```
 2. **Ejecutar en modo de voz interactivo:**
    ```bash
-   ./dist/rbot voice
+   ./bin/rbot voice
    ```
    * RBot validará las dependencias y mostrará su estado.
    * Si compilaste Whisper con CUDA, verás un log que indica el uso de GPU.
@@ -150,7 +150,7 @@ go build -o dist/rbot cmd/main.go
 
 3. **Ejecutar en modo texto rápido (Chat CLI):**
    ```bash
-   ./dist/rbot chat "ejecuta vscode"
+   ./bin/rbot chat "ejecuta vscode"
    ```
    *(El modo chat no levanta servidores MCP externos ni bloquea en segundo plano para asegurar una respuesta inmediata).*
 

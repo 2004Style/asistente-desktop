@@ -39,7 +39,7 @@ files:
         - node_modules
         - .git
         - .next
-        - dist
+        - bin
         - build
         - venv
         - __pycache__

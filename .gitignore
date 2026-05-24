@@ -1,6 +1,6 @@
 # Binarios
 rbot
-dist/
+bin/
 bin/
 
 # Modelos locales de IA (muy grandes para Git)
