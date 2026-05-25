@@ -24,8 +24,10 @@ import (
 )
 
 func main() {
-	// Definir ruta del config rbot.yaml
-	configPath := "config/rbot.yaml"
+	// Definir ruta del config rbot.yaml (Modo Producción / XDG Base Directory)
+	home, _ := os.UserHomeDir()
+	configPath := filepath.Join(home, ".config", "rbot", "rbot.yaml")
+	
 	conf, err := config.LoadConfig(configPath)
 	if err != nil {
 		log.Fatalf("Error al cargar la configuración: %v", err)

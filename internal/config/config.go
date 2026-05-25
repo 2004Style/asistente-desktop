@@ -100,7 +100,7 @@ func LoadConfig(path string) (*Config, error) {
 		defaultConfig.Skills.RemoteInstallEnabled = true
 
 		defaultConfig.Mcp.Enabled = true
-		defaultConfig.Mcp.ConfigPath = "mcp/mcp_config.json"
+		defaultConfig.Mcp.ConfigPath = "~/.config/rbot/mcp_config.json"
 
 		// Directorio actual e home
 		home, _ := os.UserHomeDir()
@@ -123,8 +123,8 @@ func LoadConfig(path string) (*Config, error) {
 			"~/.ssh", "~/.gnupg", "~/.local/share/keyrings", "**/.env",
 		}
 
-		defaultConfig.Voice.PiperModel = "voices/es_ES-davefx-medium.onnx"
-		defaultConfig.Voice.WhisperModel = "models/ggml-tiny.bin"
+		defaultConfig.Voice.PiperModel = "~/.local/share/rbot/models/piper/es_ES-davefx-medium.onnx"
+		defaultConfig.Voice.WhisperModel = "~/.local/share/rbot/models/whisper/ggml-tiny.bin"
 		defaultConfig.Voice.VadThreshold = 550.0
 		defaultConfig.Voice.WhisperThreads = 8
 		defaultConfig.Voice.WhisperFlags = ""
@@ -157,17 +157,26 @@ func LoadConfig(path string) (*Config, error) {
 	return &conf, nil
 }
 
+func expandPath(p string, home string) string {
+	if strings.HasPrefix(p, "~") && home != "" {
+		return filepath.Join(home, p[1:])
+	}
+	return p
+}
+
 // NormalizeConfig expande tildes/home, rutas relativas como '.' y las normaliza a rutas absolutas limpias.
 func NormalizeConfig(conf *Config) {
 	home, _ := os.UserHomeDir()
 
+	conf.Mcp.ConfigPath = expandPath(conf.Mcp.ConfigPath, home)
+	conf.Database.Path = expandPath(conf.Database.Path, home)
+	conf.Skills.Path = expandPath(conf.Skills.Path, home)
+	conf.Voice.PiperModel = expandPath(conf.Voice.PiperModel, home)
+	conf.Voice.WhisperModel = expandPath(conf.Voice.WhisperModel, home)
+
 	// Normalizar AllowedRoots
 	for i, root := range conf.Files.AllowedRoots {
-		// Expandir ~
-		if strings.HasPrefix(root, "~") && home != "" {
-			root = filepath.Join(home, root[1:])
-		}
-		// Convertir a absoluto y limpiar
+		root = expandPath(root, home)
 		absPath, err := filepath.Abs(root)
 		if err == nil {
 			conf.Files.AllowedRoots[i] = filepath.Clean(absPath)
@@ -178,11 +187,7 @@ func NormalizeConfig(conf *Config) {
 
 	// Normalizar BlockedPaths
 	for i, blocked := range conf.Security.BlockedPaths {
-		// Expandir ~
-		if strings.HasPrefix(blocked, "~") && home != "" {
-			blocked = filepath.Join(home, blocked[1:])
-		}
-		// Si no tiene comodines, convertir a absoluto
+		blocked = expandPath(blocked, home)
 		if !strings.Contains(blocked, "*") {
 			absPath, err := filepath.Abs(blocked)
 			if err == nil {

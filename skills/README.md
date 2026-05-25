@@ -10,45 +10,43 @@ Incluye 26 skills separadas por responsabilidad:
 
 | Carpeta | Skill | Propósito |
 |---|---|---|
-| `00-router-core` | `router-core` | Núcleo de enrutamiento para decidir qué habilidad debe activarse, evitar conflictos y resolver órdenes ambiguas. |
-| `01-security-guard` | `security-guard` | Guardia de seguridad para bloquear rutas privadas, comandos destructivos, exposición de secretos y operaciones peligrosas. |
-| `02-memory-manager` | `memory-manager` | Manejo de memoria local SQLite/FTS5 para recordar rutas, alias, preferencias técnicas, proyectos y ejecuciones útiles. |
-| `03-file-reader-search` | `file-reader-search` | Búsqueda, lectura, listado y resumen seguro de archivos y carpetas locales sin abrir aplicaciones externas. |
-| `04-file-writer-safe` | `file-writer-safe` | Creación, edición, movimiento, renombrado y borrado seguro de archivos con confirmaciones por riesgo. |
-| `05-app-launcher` | `app-launcher` | Abrir, enfocar y resolver aplicaciones instaladas desde .desktop, alias y base de datos local. |
-| `06-window-workspace-manager` | `window-workspace-manager` | Control avanzado de ventanas y workspaces en Linux/Hyprland, incluyendo inspección de ventanas del navegador. |
-| `07-browser-session-manager` | `browser-session-manager` | Manejo de navegador evitando duplicar pestañas, abriendo URLs, enfocando ventanas y separando búsquedas de reproducción. |
-| `08-web-research` | `web-research` | Investigación web, lectura de URLs, resumen de páginas y búsquedas informativas sin crear pestañas innecesarias. |
-| `09-youtube-media-control` | `youtube-media-control` | Reproducción de música y videos en YouTube evitando abrir pestañas duplicadas o activar búsquedas web equivocadas. |
-| `10-system-control` | `system-control` | Control seguro de volumen, brillo, suspensión, apagado, reinicio, bloqueo de pantalla y acciones mecánicas del sistema Linux. |
-| `11-linux-diagnostics` | `linux-diagnostics` | Diagnóstico de Linux/Arch/Hyprland: GPU NVIDIA, audio, red, disco, memoria, servicios, logs y rendimiento. |
-| `12-arch-package-manager` | `arch-package-manager` | Gestión segura de paquetes en Arch Linux con pacman/yay, búsquedas, instalación, actualización y limpieza con confirmación. |
-| `13-developer-workflow` | `developer-workflow` | Flujo general de desarrollo: detectar stack, correr tests, compilar, formatear, lint, dev server y scripts del proyecto. |
-| `14-project-navigator` | `project-navigator` | Abrir, ubicar y resumir proyectos locales conocidos usando memoria, índice de archivos y VS Code. |
-| `15-git-guardian` | `git-guardian` | Operaciones Git seguras: estado, ramas, commits, diffs, logs y protección ante push/reset/clean destructivo. |
-| `16-node-nextjs-helper` | `node-nextjs-helper` | Ayuda especializada para Node, pnpm, Next.js, React, NestJS, Turbopack, Prisma y errores de build. |
-| `17-go-rbot-helper` | `go-rbot-helper` | Skill especializada para RBot en Go: compilar, testear, revisar módulos, MCP, skills, SQLite y voz. |
-| `18-docker-devops-helper` | `docker-devops-helper` | Manejo seguro de Docker, Docker Compose, contenedores, logs, redes, volúmenes y diagnósticos de servicios locales. |
-| `19-database-prisma-postgres` | `database-prisma-postgres` | Ayuda segura para PostgreSQL, Prisma, migraciones, seeds, generación de cliente y diagnóstico de conexión. |
-| `20-network-tools` | `network-tools` | Diagnóstico de red local, DNS, puertos propios, conectividad y servicios sin realizar acciones ofensivas. |
-| `21-clipboard-notes` | `clipboard-notes` | Manejo de portapapeles y notas rápidas en Wayland/Linux con wl-clipboard. |
-| `22-screen-capture-helper` | `screen-capture-helper` | Capturas de pantalla en Wayland/Hyprland para análisis visual, pruebas del escritorio y documentación. |
-| `23-voice-command-cleaner` | `voice-command-cleaner` | Limpieza de comandos de voz, corrección de errores de Whisper, normalización de intención y activación robusta. |
-| `24-testing-chaos-suite` | `testing-chaos-suite` | Generador y ejecutor de pruebas extremas para validar el orquestador, skills, voz, rutas, navegador, música y seguridad. |
-| `25-clean-hexagonal-cli` | `clean-hexagonal-cli` | Skill especializada para usar una CLI de arquitectura limpia/hexagonal, generar estructura, módulos, casos de uso y documentación. |
-## Instalación sugerida
+| `router-core` | `router-core` | Núcleo de enrutamiento para decidir qué habilidad debe activarse, evitar conflictos y resolver órdenes ambiguas. |
+| `security-guard` | `security-guard` | Guardia de seguridad para bloquear rutas privadas, comandos destructivos, exposición de secretos y operaciones peligrosas. |
+| `memory-manager` | `memory-manager` | Manejo de memoria local SQLite/FTS5 para recordar rutas, alias, preferencias técnicas, proyectos y ejecuciones útiles. |
+| `file-reader-search` | `file-reader-search` | Búsqueda, lectura, listado y resumen seguro de archivos y carpetas locales sin abrir aplicaciones externas. |
+| `file-writer-safe` | `file-writer-safe` | Creación, edición, movimiento, renombrado y borrado seguro de archivos con confirmaciones por riesgo. |
+| `app-launcher` | `app-launcher` | Abrir, enfocar y resolver aplicaciones instaladas desde .desktop, alias y base de datos local. |
+| `window-workspace-manager` | `window-workspace-manager` | Control avanzado de ventanas y workspaces en Linux/Hyprland, incluyendo inspección de ventanas del navegador. |
+| `browser-session-manager` | `browser-session-manager` | Manejo de navegador evitando duplicar pestañas, abriendo URLs, enfocando ventanas y separando búsquedas de reproducción. |
+| `web-research` | `web-research` | Investigación web, lectura de URLs, resumen de páginas y búsquedas informativas sin crear pestañas innecesarias. |
+| `youtube-media-control` | `youtube-media-control` | Reproducción de música y videos en YouTube evitando abrir pestañas duplicadas o activar búsquedas web equivocadas. |
+| `system-control` | `system-control` | Control seguro de volumen, brillo, suspensión, apagado, reinicio, bloqueo de pantalla y acciones mecánicas del sistema Linux. |
+| `linux-diagnostics` | `linux-diagnostics` | Diagnóstico de Linux/Arch/Hyprland: GPU NVIDIA, audio, red, disco, memoria, servicios, logs y rendimiento. |
+| `arch-package-manager` | `arch-package-manager` | Gestión segura de paquetes en Arch Linux con pacman/yay, búsquedas, instalación, actualización y limpieza con confirmación. |
+| `developer-workflow` | `developer-workflow` | Flujo general de desarrollo: detectar stack, correr tests, compilar, formatear, lint, dev server y scripts del proyecto. |
+| `project-navigator` | `project-navigator` | Abrir, ubicar y resumir proyectos locales conocidos usando memoria, índice de archivos y VS Code. |
+| `git-guardian` | `git-guardian` | Operaciones Git seguras: estado, ramas, commits, diffs, logs y protección ante push/reset/clean destructivo. |
+| `node-nextjs-helper` | `node-nextjs-helper` | Ayuda especializada para Node, pnpm, Next.js, React, NestJS, Turbopack, Prisma y errores de build. |
+| `go-rbot-helper` | `go-rbot-helper` | Skill especializada para RBot en Go: compilar, testear, revisar módulos, MCP, skills, SQLite y voz. |
+| `docker-devops-helper` | `docker-devops-helper` | Manejo seguro de Docker, Docker Compose, contenedores, logs, redes, volúmenes y diagnósticos de servicios locales. |
+| `database-prisma-postgres` | `database-prisma-postgres` | Ayuda segura para PostgreSQL, Prisma, migraciones, seeds, generación de cliente y diagnóstico de conexión. |
+| `network-tools` | `network-tools` | Diagnóstico de red local, DNS, puertos propios, conectividad y servicios sin realizar acciones ofensivas. |
+| `clipboard-notes` | `clipboard-notes` | Manejo de portapapeles y notas rápidas en Wayland/Linux con wl-clipboard. |
+| `screen-capture-helper` | `screen-capture-helper` | Capturas de pantalla en Wayland/Hyprland para análisis visual, pruebas del escritorio y documentación. |
+| `voice-command-cleaner` | `voice-command-cleaner` | Limpieza de comandos de voz, corrección de errores de Whisper, normalización de intención y activación robusta. |
+| `testing-chaos-suite` | `testing-chaos-suite` | Generador y ejecutor de pruebas extremas para validar el orquestador, skills, voz, rutas, navegador, música y seguridad. |
+| `clean-hexagonal-cli` | `clean-hexagonal-cli` | Skill especializada para usar una CLI de arquitectura limpia/hexagonal, generar estructura, módulos, casos de uso y documentación. |
+## Instalación
 
-Copia las carpetas dentro de tu directorio de skills de RBot. Ejemplo:
+**Nota:** Este paquete de habilidades ahora viene preintegrado y gestionado por el instalador universal de RBot. 
 
-```bash
-mkdir -p ~/.rbot/skills
-cp -r rbot-skills-max-pack/* ~/.rbot/skills/
-```
+Si instalas RBot a través del instalador oficial (`install.sh`), estas skills se ubicarán automáticamente en:
+`~/.local/share/rbot/skills/`
 
-Si tus skills viven dentro del proyecto:
+Si eres desarrollador, simplemente ejecuta el script `setup_dev.sh` en la raíz del proyecto para enlazar esta carpeta mediante symlinks.
 
 ```bash
-cp -r rbot-skills-max-pack/* ./skills/
+# Escanear las habilidades instaladas en la memoria de RBot
 ./bin/rbot skills scan
 ```
 

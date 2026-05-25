@@ -203,3 +203,11 @@ El archivo de configuración YAML te permite parametrizar el comportamiento:
 - `model.model`: Modelo cargado en Ollama.
 - `files.allowed_roots`: Carpetas seguras donde RBot tiene permitido buscar y resumir archivos.
 - `security.blocked_paths`: Directorios privados donde RBot tiene estrictamente prohibido ingresar (bloquea por defecto carpetas `.ssh`, claves privadas y ficheros `.env`).
+
+## 📚 Documentación Adicional
+
+- [Ciclo de Vida de Distribución, Releases y CDNs](docs/distribucion.md)
+- [Solución de Problemas (Interferencias Comunes)](docs/interferencias.md)
+- [Guía de Dependencias del Sistema](docs/dependencies.md)
+- [Configuración de Base de Datos y Sistema de Permisos](docs/db_y_mcp_config.md)
+- [Guía de Compilación Avanzada](docs/compilation.md)
