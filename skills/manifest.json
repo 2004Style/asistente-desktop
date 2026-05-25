@@ -1,0 +1,40 @@
+{
+  "name": "rbot-skills-max-pack",
+  "version": "1.0.0",
+  "author": "RBot Max Pack",
+  "target": "RBot Desktop Agent / Linux / Arch / Hyprland",
+  "skill_count": 26,
+  "skills": [
+    "00-router-core",
+    "01-security-guard",
+    "02-memory-manager",
+    "03-file-reader-search",
+    "04-file-writer-safe",
+    "05-app-launcher",
+    "06-window-workspace-manager",
+    "07-browser-session-manager",
+    "08-web-research",
+    "09-youtube-media-control",
+    "10-system-control",
+    "11-linux-diagnostics",
+    "12-arch-package-manager",
+    "13-developer-workflow",
+    "14-project-navigator",
+    "15-git-guardian",
+    "16-node-nextjs-helper",
+    "17-go-rbot-helper",
+    "18-docker-devops-helper",
+    "19-database-prisma-postgres",
+    "20-network-tools",
+    "21-clipboard-notes",
+    "22-screen-capture-helper",
+    "23-voice-command-cleaner",
+    "24-testing-chaos-suite",
+    "25-clean-hexagonal-cli"
+  ],
+  "notes": [
+    "Each folder contains SKILL.md",
+    "Designed to reduce routing conflicts",
+    "Security-first with explicit confirmation for destructive actions"
+  ]
+}

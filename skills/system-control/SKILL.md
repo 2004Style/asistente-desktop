@@ -1,39 +1,75 @@
 ---
 name: system-control
-description: Habilidad avanzada para el control de volumen, brillo, energía y ventanas del sistema operativo Linux
-version: 1.0.0
-author: RBot Premium
-risk_level: medium
+description: Control seguro de volumen, brillo, suspensión, apagado, reinicio, bloqueo de pantalla y acciones mecánicas del sistema Linux.
+version: 2.0.0
+author: RBot Max Pack
+risk_level: high
 voice_triggers:
   - "sube el volumen"
   - "baja el volumen"
-  - "silencia el audio"
-  - "apaga la pantalla"
+  - "silencia"
+  - "quita el silencio"
+  - "sube el brillo"
+  - "baja el brillo"
+  - "bloquea la pantalla"
+  - "suspende"
+  - "apaga la computadora"
   - "reinicia la computadora"
-  - "apaga el equipo"
-  - "cierra la ventana"
 permissions:
   - exec:amixer
+  - exec:pactl
   - exec:brightnessctl
-  - exec:hyprctl
+  - exec:loginctl
   - exec:systemctl
 ---
 
-# Habilidad Premium: Control de Sistema
+# Skill: System Control
 
-Esta habilidad permite controlar aspectos de hardware y ventanas del entorno de escritorio del usuario.
+Controla acciones del sistema operativo.
 
-## Reglas de Ejecución:
-1. **Volumen de Audio**:
-   - Para subir el volumen: Ejecuta `system.run_command(command="amixer set Master 10%+")`.
-   - Para bajar el volumen: Ejecuta `system.run_command(command="amixer set Master 10%-")`.
-   - Para silenciar: Ejecuta `system.run_command(command="amixer set Master toggle")`.
-2. **Control de Ventanas (Hyprland)**:
-   - Para cerrar la ventana activa o enfocada: Ejecuta `system.run_command(command="hyprctl dispatch closewindow active")`.
-3. **Energía**:
-   - Para apagar el equipo (acción crítica): Pide confirmación y ejecuta `system.run_command(command="systemctl poweroff")`.
-   - Para reiniciar el equipo (acción crítica): Pide confirmación y ejecuta `system.run_command(command="systemctl reboot")`.
+## Audio
 
-## Ejemplos de uso:
-- "sube el volumen por favor" -> Llama a system.run_command(command="amixer set Master 10%+")
-- "cierra esta ventana" -> Llama a system.run_command(command="hyprctl dispatch closewindow active")
+Preferir PipeWire/PulseAudio si está disponible:
+
+```bash
+pactl set-sink-volume @DEFAULT_SINK@ +10%
+pactl set-sink-volume @DEFAULT_SINK@ -10%
+pactl set-sink-mute @DEFAULT_SINK@ toggle
+```
+
+Fallback:
+
+```bash
+amixer set Master 10%+
+amixer set Master 10%-
+amixer set Master toggle
+```
+
+## Brillo
+
+```bash
+brightnessctl set +10%
+brightnessctl set 10%-
+```
+
+## Energía
+
+Requieren confirmación:
+
+```bash
+systemctl poweroff
+systemctl reboot
+systemctl suspend
+```
+
+Bloquear pantalla puede ejecutarse si hay comando disponible:
+
+```bash
+loginctl lock-session
+```
+
+## Reglas
+
+1. Apagar/reiniciar/suspender siempre requiere confirmación.
+2. Para volumen y brillo, ejecutar directamente.
+3. No usar `sudo` salvo que el sistema lo exija y el usuario confirme.

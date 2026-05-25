@@ -37,6 +37,7 @@ type Orchestrator struct {
 	BlockedPaths []string
 	AllowedRoots []string
 	AgentName    string
+	IsVoiceMode  bool
 }
 
 func NewOrchestrator(db *sql.DB, ollamaClient *ollama.Client, mcpManager *mcp.ServerManager, blockedPaths []string, allowedRoots []string, agentName string) *Orchestrator {
@@ -125,6 +126,10 @@ Responde de forma muy corta, directa y natural en español.
 - NUNCA muestres códigos, nombres de funciones técnicas (como "desktop.open_app") ni le expliques al usuario cómo usar las herramientas.
 - REGLA DE ORO DE RESPUESTA: NUNCA pronuncies ni escribas enlaces URL completos ni rutas de archivo absolutas locales (ej: '/home/usuario/...', 'https://youtube.com/...', etc.) en tus confirmaciones de voz/texto al usuario. Es molesto escucharlas leídas. En su lugar, nombra la aplicación, carpeta o video amigablemente (ej. "He abierto Descargas", "Reproduciendo Linkin Park", etc.).
 - Excepción: Solo si el usuario te está pidiendo específicamente resúmenes de información, noticias o búsquedas detalladas, debes proporcionarle el contenido solicitado con detalle, pero siempre de manera natural y sin enlaces técnicos.
+- **PLANIFICACIÓN Y MULTI-TAREAS**: Si el usuario te pide varias cosas en una sola frase (ej. "abre vscode, abre la terminal y pon música chill"), DEBES llamar a múltiples herramientas secuencialmente en tu respuesta de herramientas (Tool Calling) en el orden en que fueron solicitadas.
+- **RESOLUCIÓN INTELIGENTE DE RUTA/PROYECTO**: Si te pide abrir o trabajar en "mi proyecto", "el proyecto principal", "la cli" o "un proyecto" y no sabes la ruta exacta, utiliza primero files.search_index(query="cli") o similar para localizar la ruta física correcta en disco antes de intentar abrirla o realizar acciones sobre ella.
+- **LEER Y RESUMIR PÁGINAS WEB**: Si te pide resumir, leer o responder sobre una dirección URL o sitio web específico (ej. "dame un resumen de la página convertsystems.site"), debes ejecutar la herramienta browser.read_url(url="<URL>") para extraer su texto real y luego elaborar tu respuesta.
+- **BÚSQUEDAS DE MÚSICA IMPRECISAS**: Si te pide "música chill", "para programar", "para concentrarme" o "música hacker", traduce esto a términos lógicos para la herramienta (ej. "lofi hip hop beats", "musica tranquila estudiar", "synthwave coder music").
 
 [METADATOS DEL SISTEMA (TIEMPO REAL)]
 - Fecha y hora actual: %s
@@ -138,7 +143,7 @@ Responde de forma muy corta, directa y natural en español.
 %s
 [REGLAS DE SEGURIDAD]
 - Nunca leas o expongas archivos sensibles como .env, .ssh, .gnupg o claves privadas.
-- Si vas a realizar una acción de alto riesgo (ej. ejecutar comandos complejos o borrar archivos), dile al usuario que la vas a ejecutar.
+- Si vas a realizar una acción de alto riesgo (ej. ejecutar comandos complejos, borrar directorios, o cerrar procesos del sistema), debes solicitar confirmación explícita o advertir al usuario.
 `, currentTime, appsStr, skillsStr, memoryStr, skillsSection)
 }
 
@@ -194,6 +199,24 @@ func (o *Orchestrator) GetAvailableTools(ctx context.Context) []ollama.Tool {
 					"url": map[string]interface{}{
 						"type":        "string",
 						"description": "Sitio web o dirección URL a abrir.",
+					},
+				},
+				Required: []string{"url"},
+			},
+		},
+	})
+
+	list = append(list, ollama.Tool{
+		Type: "function",
+		Function: ollama.FunctionDefinition{
+			Name:        "browser.read_url",
+			Description: "Lee y extrae el contenido de texto de una página web o dirección URL para poder resumirla o responder preguntas sobre ella.",
+			Parameters: ollama.Parameters{
+				Type: "object",
+				Properties: map[string]interface{}{
+					"url": map[string]interface{}{
+						"type":        "string",
+						"description": "La dirección URL del sitio web a leer.",
 					},
 				},
 				Required: []string{"url"},
@@ -591,12 +614,22 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 			} else {
 				if requiresConfirm {
 					confirmedByUser = 1
-					if o.askConfirmationInteractive(toolName, fmt.Sprintf("%v", args), reason) {
-						resultStr, execErr = o.executeTool(ctx, toolName, args)
+					if o.IsVoiceMode {
+						if o.hasUserConfirmedConversational(history, userInput) {
+							resultStr, execErr = o.executeTool(ctx, toolName, args)
+						} else {
+							resultStr = fmt.Sprintf("Error: Confirmación conversacional requerida para '%s'.", toolName)
+							execErr = fmt.Errorf("confirmación conversacional requerida: %s", reason)
+							success = 0
+						}
 					} else {
-						resultStr = "Error: Acción cancelada por el usuario."
-						execErr = fmt.Errorf("cancelado por el usuario")
-						success = 0
+						if o.askConfirmationInteractive(toolName, fmt.Sprintf("%v", args), reason) {
+							resultStr, execErr = o.executeTool(ctx, toolName, args)
+						} else {
+							resultStr = "Error: Acción cancelada por el usuario."
+							execErr = fmt.Errorf("cancelado por el usuario")
+							success = 0
+						}
 					}
 				} else {
 					resultStr, execErr = o.executeTool(ctx, toolName, args)
@@ -734,12 +767,22 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 			} else {
 				if requiresConfirm {
 					confirmedByUser = 1
-					if o.askConfirmationInteractive(toolName, string(argsJSON), reason) {
-						resultStr, execErr = o.executeTool(ctx, toolName, args)
+					if o.IsVoiceMode {
+						if o.hasUserConfirmedConversational(messages, userInput) {
+							resultStr, execErr = o.executeTool(ctx, toolName, args)
+						} else {
+							resultStr = fmt.Sprintf("Error: Confirmación conversacional requerida para '%s'.", toolName)
+							execErr = fmt.Errorf("confirmación conversacional requerida: %s", reason)
+							success = 0
+						}
 					} else {
-						resultStr = "Error: Acción cancelada por el usuario."
-						execErr = fmt.Errorf("cancelado por el usuario")
-						success = 0
+						if o.askConfirmationInteractive(toolName, string(argsJSON), reason) {
+							resultStr, execErr = o.executeTool(ctx, toolName, args)
+						} else {
+							resultStr = "Error: Acción cancelada por el usuario."
+							execErr = fmt.Errorf("cancelado por el usuario")
+							success = 0
+						}
 					}
 				} else {
 					resultStr, execErr = o.executeTool(ctx, toolName, args)
@@ -855,6 +898,14 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			command = app
 		}
 
+		// Validar si el ejecutable del comando existe en el sistema
+		firstWord := strings.Fields(command)[0]
+		if _, err := exec.LookPath(firstWord); err != nil {
+			if info, statErr := os.Stat(firstWord); statErr != nil || info.IsDir() {
+				return "", fmt.Errorf("no se encontró la aplicación o programa '%s' en el sistema", app)
+			}
+		}
+
 		err := desktop.LaunchApplication(command)
 		if err != nil {
 			return "", err
@@ -948,41 +999,21 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		resolvedPath := path
-		if !filepath.IsAbs(resolvedPath) {
-			p, err := files.FindFileOrDirectory(o.DB, resolvedPath, o.AllowedRoots, o.BlockedPaths)
-			if err == nil {
-				resolvedPath = p
-			} else {
-				home, _ := os.UserHomeDir()
-				if home != "" {
-					testPath := filepath.Join(home, resolvedPath)
-					if _, err := os.Stat(testPath); err == nil {
-						resolvedPath = testPath
-					} else {
-						titlePath := filepath.Join(home, strings.Title(strings.ToLower(resolvedPath)))
-						if _, err := os.Stat(titlePath); err == nil {
-							resolvedPath = titlePath
-						}
-					}
-				}
-			}
-		}
-
-		if security.IsPathBlocked(resolvedPath, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
+		resolvedPath, err := o.resolvePathSmart(path, false)
+		if err != nil {
+			return "", err
 		}
 
 		appLower := strings.ToLower(strings.TrimSpace(app))
 		if appLower == "vscode" || appLower == "code" {
-			err := desktop.LaunchApplication("code " + resolvedPath)
+			err = desktop.LaunchApplication("code " + resolvedPath)
 			if err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("Carpeta '%s' abierta en VS Code.", resolvedPath), nil
 		}
 
-		err := desktop.LaunchApplication("nautilus " + resolvedPath)
+		err = desktop.LaunchApplication("nautilus " + resolvedPath)
 		if err != nil {
 			return "", err
 		}
@@ -1009,6 +1040,57 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 		}
 		return fmt.Sprintf("Navegador abierto en la URL: %s", targetURL), nil
 
+	case "browser.read_url":
+		targetURL, _ := args["url"].(string)
+		if targetURL == "" {
+			return "", fmt.Errorf("argumento 'url' requerido")
+		}
+
+		if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
+			targetURL = "https://" + targetURL
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
+		if err != nil {
+			return "", fmt.Errorf("error al crear petición: %v", err)
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+
+		client := &http.Client{Timeout: 10 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", fmt.Errorf("error al conectar con la página web: %v", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("la página devolvió un código de estado error: %d", resp.StatusCode)
+		}
+
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("error al leer contenido: %v", err)
+		}
+
+		htmlStr := string(bodyBytes)
+		reScript := regexp.MustCompile(`(?s)<script.*?>.*?</script>`)
+		htmlStr = reScript.ReplaceAllString(htmlStr, "")
+		reStyle := regexp.MustCompile(`(?s)<style.*?>.*?</style>`)
+		htmlStr = reStyle.ReplaceAllString(htmlStr, "")
+		reTags := regexp.MustCompile(`<.*?>`)
+		textStr := reTags.ReplaceAllString(htmlStr, " ")
+		reSpaces := regexp.MustCompile(`\s+`)
+		textStr = reSpaces.ReplaceAllString(textStr, " ")
+		textStr = strings.TrimSpace(textStr)
+		if len(textStr) > 4000 {
+			textStr = textStr[:4000] + "... [Contenido truncado]"
+		}
+
+		if textStr == "" {
+			return "No se pudo extraer texto legible de la página.", nil
+		}
+		return textStr, nil
+
 	case "files.search_index":
 		query, _ := args["query"].(string)
 		if query == "" {
@@ -1027,18 +1109,11 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		// Comprobar bloqueo
-		if security.IsPathBlocked(path, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
+		resolvedPath, err := o.resolvePathSmart(path, false)
+		if err != nil {
+			return "", err
 		}
-
-		// Si el path no es absoluto, intentar buscarlo en la base de datos o carpetas permitidas
-		if !filepath.IsAbs(path) {
-			resolvedPath, err := files.FindFileOrDirectory(o.DB, path, o.AllowedRoots, o.BlockedPaths)
-			if err == nil {
-				path = resolvedPath
-			}
-		}
+		path = resolvedPath
 
 		info, err := os.Stat(path)
 		if err != nil {
@@ -1082,24 +1157,12 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		resolvedPath := path
-		if !filepath.IsAbs(resolvedPath) {
-			p, err := files.FindFileOrDirectory(o.DB, resolvedPath, o.AllowedRoots, o.BlockedPaths)
-			if err == nil {
-				resolvedPath = p
-			} else {
-				home, _ := os.UserHomeDir()
-				if home != "" {
-					resolvedPath = filepath.Join(home, "Descargas", resolvedPath)
-				}
-			}
+		resolvedPath, err := o.resolvePathSmart(path, true)
+		if err != nil {
+			return "", err
 		}
 
-		if security.IsPathBlocked(resolvedPath, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
-		}
-
-		err := os.MkdirAll(filepath.Dir(resolvedPath), 0755)
+		err = os.MkdirAll(filepath.Dir(resolvedPath), 0755)
 		if err != nil {
 			return "", fmt.Errorf("error al crear directorios padres: %v", err)
 		}
@@ -1116,19 +1179,12 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		resolvedPath := path
-		if !filepath.IsAbs(resolvedPath) {
-			p, err := files.FindFileOrDirectory(o.DB, resolvedPath, o.AllowedRoots, o.BlockedPaths)
-			if err == nil {
-				resolvedPath = p
-			}
+		resolvedPath, err := o.resolvePathSmart(path, false)
+		if err != nil {
+			return "", err
 		}
 
-		if security.IsPathBlocked(resolvedPath, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
-		}
-
-		err := os.RemoveAll(resolvedPath)
+		err = os.RemoveAll(resolvedPath)
 		if err != nil {
 			return "", fmt.Errorf("error al eliminar: %v", err)
 		}
@@ -1140,16 +1196,9 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		resolvedPath := path
-		if !filepath.IsAbs(resolvedPath) {
-			p, err := files.FindFileOrDirectory(o.DB, resolvedPath, o.AllowedRoots, o.BlockedPaths)
-			if err == nil {
-				resolvedPath = p
-			}
-		}
-
-		if security.IsPathBlocked(resolvedPath, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
+		resolvedPath, err := o.resolvePathSmart(path, false)
+		if err != nil {
+			return "", err
 		}
 
 		entries, err := os.ReadDir(resolvedPath)
@@ -1173,19 +1222,12 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 			return "", fmt.Errorf("argumento 'path' requerido")
 		}
 
-		resolvedPath := path
-		if !filepath.IsAbs(resolvedPath) {
-			home, _ := os.UserHomeDir()
-			if home != "" {
-				resolvedPath = filepath.Join(home, "Descargas", resolvedPath)
-			}
+		resolvedPath, err := o.resolvePathSmart(path, true)
+		if err != nil {
+			return "", err
 		}
 
-		if security.IsPathBlocked(resolvedPath, o.BlockedPaths) {
-			return "", fmt.Errorf("ruta bloqueada por seguridad")
-		}
-
-		err := os.MkdirAll(resolvedPath, 0755)
+		err = os.MkdirAll(resolvedPath, 0755)
 		if err != nil {
 			return "", fmt.Errorf("error al crear directorio: %v", err)
 		}
@@ -1282,6 +1324,7 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 // para evitar que el LLM cometa fallos o haga preguntas innecesarias.
 func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 	inputLower := strings.ToLower(strings.TrimSpace(userInput))
+	inputLower = normalizeSpelling(inputLower)
 	// Quitar puntuación común
 	inputLower = strings.TrimFunc(inputLower, func(r rune) bool {
 		return r == ',' || r == '.' || r == '!' || r == '?' || r == '¿' || r == '¡' || r == ';' || r == ':'
@@ -1715,7 +1758,7 @@ func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 	cleanFolderTarget = strings.TrimSpace(cleanFolderTarget)
 
 	if cleanFolderTarget != "" {
-		if dirPath, ok := o.findDirectoryPath(cleanFolderTarget); ok {
+		if dirPath, err := o.resolvePathSmart(cleanFolderTarget, false); err == nil {
 			app := "nautilus"
 			if strings.Contains(inputLower, "code") || strings.Contains(inputLower, "vscode") {
 				app = "vscode"
@@ -1913,7 +1956,7 @@ func (o *Orchestrator) findBestAppMatch(query string) (string, bool) {
 	}
 
 	// Normalización para terminal/consola
-	if query == "consola" || query == "terminal" || strings.Contains(query, "linea de comandos") {
+	if query == "consola" || query == "terminal" || query == "kitty" || query == "alacritty" || query == "konsole" || strings.Contains(query, "linea de comandos") {
 		var execName string
 		err := o.DB.QueryRow("SELECT executable FROM app_launchers WHERE name = 'kitty' OR name = 'gnome-terminal' OR name = 'konsole' OR name = 'terminal' LIMIT 1").Scan(&execName)
 		if err == nil {
@@ -2018,4 +2061,230 @@ func getFirstYouTubeVideo(query string) string {
 	}
 
 	return searchURL
+}
+
+func (o *Orchestrator) resolveAmbiguityInteractive(query string, matches []string) (string, error) {
+	if len(matches) == 1 {
+		return matches[0], nil
+	}
+
+	if o.IsVoiceMode {
+		var friendlyMatches []string
+		for _, m := range matches {
+			friendlyMatches = append(friendlyMatches, filepath.Base(m))
+		}
+		return "", fmt.Errorf("se encontraron múltiples coincidencias para '%s': %s. Por favor, sé más específico sobre cuál carpeta abrir", query, strings.Join(friendlyMatches, ", "))
+	}
+
+	fmt.Printf("\n🔍 Se encontraron múltiples coincidencias para '%s':\n", query)
+	for i, match := range matches {
+		fmt.Printf(" [%d] %s\n", i+1, match)
+	}
+	fmt.Print("Por favor, selecciona el número de la carpeta/archivo que deseas usar (o 'c' para cancelar): ")
+
+	reader := bufio.NewReader(os.Stdin)
+	input, err := reader.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("error al leer la entrada: %v", err)
+	}
+	input = strings.TrimSpace(strings.ToLower(input))
+	if input == "c" || input == "cancelar" {
+		return "", fmt.Errorf("acción cancelada por el usuario")
+	}
+
+	var index int
+	_, err = fmt.Sscanf(input, "%d", &index)
+	if err != nil || index < 1 || index > len(matches) {
+		return "", fmt.Errorf("selección inválida")
+	}
+
+	return matches[index-1], nil
+}
+
+func (o *Orchestrator) resolvePathSmart(path string, isCreation bool) (string, error) {
+	if path == "" {
+		return "", fmt.Errorf("ruta vacía")
+	}
+
+	if filepath.IsAbs(path) {
+		if security.IsPathBlocked(path, o.BlockedPaths) {
+			return "", fmt.Errorf("ruta bloqueada por seguridad")
+		}
+		return path, nil
+	}
+
+	if strings.HasPrefix(path, "~") {
+		home, _ := os.UserHomeDir()
+		if home != "" {
+			path = filepath.Join(home, path[1:])
+		}
+		if security.IsPathBlocked(path, o.BlockedPaths) {
+			return "", fmt.Errorf("ruta bloqueada por seguridad")
+		}
+		return path, nil
+	}
+
+	cleaned := filepath.Clean(path)
+	parts := strings.Split(cleaned, string(filepath.Separator))
+
+	if len(parts) == 1 {
+		if isCreation {
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				return filepath.Join(home, "Descargas", cleaned), nil
+			}
+			return cleaned, nil
+		}
+		matches, err := files.FindMultipleFilesOrDirectories(o.DB, cleaned, o.AllowedRoots, o.BlockedPaths)
+		if err != nil {
+			// Intentar carpetas especiales por defecto si no están indexadas
+			home, _ := os.UserHomeDir()
+			if home != "" {
+				targetLower := strings.ToLower(cleaned)
+				var specialPath string
+				switch targetLower {
+				case "descargas":
+					specialPath = filepath.Join(home, "Descargas")
+				case "documentos":
+					specialPath = filepath.Join(home, "Documentos")
+				case "escritorio":
+					specialPath = filepath.Join(home, "Escritorio")
+				case "imágenes", "imagenes":
+					specialPath = filepath.Join(home, "Imágenes")
+				case "música", "musica":
+					specialPath = filepath.Join(home, "Música")
+				case "vídeos", "videos":
+					specialPath = filepath.Join(home, "Vídeos")
+				}
+				if specialPath != "" {
+					return specialPath, nil
+				}
+			}
+			return "", err
+		}
+		return o.resolveAmbiguityInteractive(cleaned, matches)
+	}
+
+	if isCreation {
+		for i := len(parts) - 1; i > 0; i-- {
+			parentRel := filepath.Join(parts[:i]...)
+			matches, err := files.FindMultipleFilesOrDirectories(o.DB, parentRel, o.AllowedRoots, o.BlockedPaths)
+			if err == nil && len(matches) > 0 {
+				resolvedParent, err := o.resolveAmbiguityInteractive(parentRel, matches)
+				if err == nil {
+					rest := filepath.Join(parts[i:]...)
+					resolved := filepath.Join(resolvedParent, rest)
+					if security.IsPathBlocked(resolved, o.BlockedPaths) {
+						return "", fmt.Errorf("ruta bloqueada por seguridad")
+					}
+					return resolved, nil
+				}
+			}
+		}
+		firstPart := parts[0]
+		matches, err := files.FindMultipleFilesOrDirectories(o.DB, firstPart, o.AllowedRoots, o.BlockedPaths)
+		if err == nil && len(matches) > 0 {
+			resolvedParent, err := o.resolveAmbiguityInteractive(firstPart, matches)
+			if err == nil {
+				rest := filepath.Join(parts[1:]...)
+				resolved := filepath.Join(resolvedParent, rest)
+				if security.IsPathBlocked(resolved, o.BlockedPaths) {
+					return "", fmt.Errorf("ruta bloqueada por seguridad")
+				}
+				return resolved, nil
+			}
+		}
+		home, _ := os.UserHomeDir()
+		if home != "" {
+			return filepath.Join(home, "Descargas", cleaned), nil
+		}
+		return cleaned, nil
+	} else {
+		matches, err := files.FindMultipleFilesOrDirectories(o.DB, cleaned, o.AllowedRoots, o.BlockedPaths)
+		if err == nil && len(matches) > 0 {
+			return o.resolveAmbiguityInteractive(cleaned, matches)
+		}
+		for i := len(parts) - 1; i > 0; i-- {
+			parentRel := filepath.Join(parts[:i]...)
+			parentMatches, err := files.FindMultipleFilesOrDirectories(o.DB, parentRel, o.AllowedRoots, o.BlockedPaths)
+			if err == nil && len(parentMatches) > 0 {
+				resolvedParent, err := o.resolveAmbiguityInteractive(parentRel, parentMatches)
+				if err == nil {
+					rest := filepath.Join(parts[i:]...)
+					resolved := filepath.Join(resolvedParent, rest)
+					if _, err := os.Stat(resolved); err == nil {
+						if security.IsPathBlocked(resolved, o.BlockedPaths) {
+							return "", fmt.Errorf("ruta bloqueada por seguridad")
+						}
+						return resolved, nil
+					}
+				}
+			}
+		}
+		return "", fmt.Errorf("no se encontró ningún archivo o carpeta con el nombre '%s'", cleaned)
+	}
+}
+
+func normalizeSpelling(s string) string {
+	s = " " + s + " "
+
+	replacements := map[string]string{
+		"yutub":          "youtube",
+		"yutú":           "youtube",
+		"bisual":         "vscode",
+		"gugol":          "google",
+		"gugel":          "google",
+		"convertsistem":  "convertsystems",
+		"convertsystems": "convertsystems.site",
+		"doker":          "docker",
+		"karpeta":        "carpeta",
+		"prueva":         "prueba",
+		"arxivo":         "archivo",
+		"interner":       "internet",
+		"sirra":          "cierra",
+		"sierra":         "cierra",
+		"habre":          "abre",
+		"tranqui":        "tranquila",
+		"pa":             "para",
+		"q":              "que",
+		"xq":             "por que",
+	}
+
+	for k, v := range replacements {
+		s = strings.ReplaceAll(s, " "+k+" ", " "+v+" ")
+		s = strings.ReplaceAll(s, " "+k+",", " "+v+",")
+		s = strings.ReplaceAll(s, " "+k+".", " "+v+".")
+		s = strings.ReplaceAll(s, " "+k+"?", " "+v+"?")
+		s = strings.ReplaceAll(s, " "+k+"!", " "+v+"!")
+	}
+
+	return strings.TrimSpace(s)
+}
+
+func (o *Orchestrator) hasUserConfirmedConversational(history []ollama.Message, userInput string) bool {
+	if len(history) == 0 {
+		return false
+	}
+
+	var lastAssistantMsg string
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == "assistant" {
+			lastAssistantMsg = strings.ToLower(history[i].Content)
+			break
+		}
+	}
+
+	if lastAssistantMsg == "" || (!strings.Contains(lastAssistantMsg, "confirm") && !strings.Contains(lastAssistantMsg, "seguro") && !strings.Contains(lastAssistantMsg, "desea") && !strings.Contains(lastAssistantMsg, "proceder")) {
+		return false
+	}
+
+	cleanInput := strings.ToLower(strings.TrimSpace(userInput))
+	affirmatives := []string{"sí", "si", "hazlo", "proceder", "confirmo", "confirmar", "correcto", "adelante", "ejecuta", "acepto", "dale"}
+	for _, aff := range affirmatives {
+		if cleanInput == aff || strings.Contains(cleanInput, " "+aff+" ") || strings.HasPrefix(cleanInput, aff+" ") || strings.HasSuffix(cleanInput, " "+aff) {
+			return true
+		}
+	}
+
+	return false
 }

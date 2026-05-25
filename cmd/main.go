@@ -305,6 +305,7 @@ Cuando el usuario pida "%s":
 		listMcpTools(context.Background(), mcpManager)
 
 	case "voice":
+		orchestrator.IsVoiceMode = true
 		log.Println("--------------------------------------------------")
 		log.Printf("Iniciando %s en Modo Conversación de Voz Continua\n", conf.Agent.Name)
 		log.Printf("Palabras de activación: %v\n", conf.Agent.WakeWords)

@@ -174,3 +174,132 @@ func cachePathEntry(db *sql.DB, path string) {
 		}
 	}
 }
+
+// FindMultipleFilesOrDirectories busca todas las coincidencias para un archivo o carpeta en los roots permitidos.
+func FindMultipleFilesOrDirectories(db *sql.DB, query string, allowedRoots []string, blockedPaths []string) ([]string, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("consulta vacía")
+	}
+
+	var matches []string
+	seen := make(map[string]bool)
+
+	// 1. Buscar en aliases
+	var aliasPath string
+	aliasQuery := `
+	SELECT p.path FROM path_aliases a
+	JOIN path_entries p ON a.path_entry_id = p.id
+	WHERE a.alias = ? COLLATE NOCASE;
+	`
+	err := db.QueryRow(aliasQuery, query).Scan(&aliasPath)
+	if err == nil {
+		if verifyPath(db, aliasPath) && !seen[aliasPath] {
+			matches = append(matches, aliasPath)
+			seen[aliasPath] = true
+		}
+	}
+
+	// 2. Buscar exacto en BD
+	rows, err := db.Query("SELECT path FROM path_entries WHERE name = ? AND exists_now = 1", query)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var p string
+			if err := rows.Scan(&p); err == nil && verifyPath(db, p) && !seen[p] {
+				matches = append(matches, p)
+				seen[p] = true
+			}
+		}
+	}
+
+	// Coincidencia parcial FTS5
+	if db != nil {
+		ftsQuery := `
+		SELECT path FROM search_index 
+		WHERE title MATCH ? LIMIT 10;
+		`
+		matchQuery := fmt.Sprintf("\"%s*\"", strings.ReplaceAll(query, "\"", ""))
+		rowsFTS, err := db.Query(ftsQuery, matchQuery)
+		if err == nil {
+			defer rowsFTS.Close()
+			for rowsFTS.Next() {
+				var p string
+				if err := rowsFTS.Scan(&p); err == nil && verifyPath(db, p) && !seen[p] {
+					matches = append(matches, p)
+					seen[p] = true
+				}
+			}
+		}
+	}
+
+	// Coincidencia parcial LIKE
+	rowsLike, err := db.Query(`
+		SELECT path FROM path_entries 
+		WHERE name LIKE ? AND exists_now = 1 
+		ORDER BY open_count DESC LIMIT 10;
+	`, "%"+query+"%")
+	if err == nil {
+		defer rowsLike.Close()
+		for rowsLike.Next() {
+			var p string
+			if err := rowsLike.Scan(&p); err == nil && verifyPath(db, p) && !seen[p] {
+				matches = append(matches, p)
+				seen[p] = true
+			}
+		}
+	}
+
+	// Búsqueda física recursiva (si tenemos pocos matches o queremos estar seguros)
+	if len(matches) < 5 {
+		for _, root := range allowedRoots {
+			rootClean := filepath.Clean(root)
+			if strings.HasPrefix(rootClean, "~") {
+				home, err := os.UserHomeDir()
+				if err == nil {
+					rootClean = filepath.Join(home, rootClean[1:])
+				}
+			}
+
+			_ = filepath.WalkDir(rootClean, func(path string, d fs.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return nil
+				}
+
+				// Ignorar bloqueados
+				for _, blocked := range blockedPaths {
+					if strings.HasPrefix(path, blocked) {
+						if d.IsDir() {
+							return filepath.SkipDir
+						}
+						return nil
+					}
+				}
+
+				// Si el nombre coincide
+				if strings.EqualFold(d.Name(), query) || strings.Contains(strings.ToLower(d.Name()), strings.ToLower(query)) {
+					if !seen[path] {
+						matches = append(matches, path)
+						seen[path] = true
+					}
+				}
+				return nil
+			})
+		}
+	}
+
+	// Filtrar las que existen físicamente por si acaso
+	var validMatches []string
+	for _, m := range matches {
+		if _, err := os.Stat(m); err == nil {
+			validMatches = append(validMatches, m)
+		}
+	}
+
+	if len(validMatches) == 0 {
+		return nil, fmt.Errorf("no se encontró ningún archivo o carpeta con el nombre '%s'", query)
+	}
+
+	return validMatches, nil
+}
+

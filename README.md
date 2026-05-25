@@ -6,15 +6,15 @@
 
 ## 🌟 Características Principales
 
-*   **Lenguaje de Programación:** Go (ejecución extremadamente rápida y bajo consumo de recursos).
-*   **Base de Datos local (SQLite + FTS5):** Base de datos indexada con búsqueda de texto completo para recordar archivos, carpetas, alias de rutas, historial de ejecuciones y datos personales.
-*   **Herramientas y Tool Calling nativo:** Conecta dinámicamente herramientas locales e inyecta herramientas de servidores MCP en Ollama mediante la API `/api/chat`.
-*   **Cliente MCP stdio JSON-RPC 2.0:** Inicializa y enruta peticiones de forma **asíncrona y en segundo plano** a servidores MCP externos (por ejemplo, `server-filesystem`) para evitar retrasos de arranque.
-*   **Motor de Habilidades (`SKILL.md`):** Parser nativo de Markdown y frontmatter YAML para indexar procedimientos y auditorías de seguridad antes de ejecutar comandos.
-*   **Seguridad por Capas:** Control de rutas prohibidas (ej. carpetas `.ssh` o archivos `.env`) y confirmación interactiva para herramientas de alto riesgo antes de su ejecución.
-*   **Confirmación Rápida de Acciones Directas:** Salta llamadas innecesarias al LLM para confirmar de inmediato (latencia < 1ms) la ejecución de acciones mecánicas como abrir/cerrar apps (`"ejecuta vscode"`) o cargar URLs, generando las respuestas conversacionales localmente en español.
-*   **Auto-Carga e Indexación Asíncrona:** Descubre y habilita automáticamente habilidades en el inicio, y realiza el primer escaneo de archivos y aplicaciones de escritorio en segundo plano si la base de datos local está vacía.
-*   **Ciclo de Voz de Alto Rendimiento:** Utiliza binarios de C++ altamente optimizados (`piper` para TTS y `whisper.cpp` para STT) controlados directamente por Go, eliminando la sobrecarga y latencia de Python.
+- **Lenguaje de Programación:** Go (ejecución extremadamente rápida y bajo consumo de recursos).
+- **Base de Datos local (SQLite + FTS5):** Base de datos indexada con búsqueda de texto completo para recordar archivos, carpetas, alias de rutas, historial de ejecuciones y datos personales.
+- **Herramientas y Tool Calling nativo:** Conecta dinámicamente herramientas locales e inyecta herramientas de servidores MCP en Ollama mediante la API `/api/chat`.
+- **Cliente MCP stdio JSON-RPC 2.0:** Inicializa y enruta peticiones de forma **asíncrona y en segundo plano** a servidores MCP externos (por ejemplo, `server-filesystem`) para evitar retrasos de arranque.
+- **Motor de Habilidades (`SKILL.md`):** Parser nativo de Markdown y frontmatter YAML para indexar procedimientos y auditorías de seguridad antes de ejecutar comandos.
+- **Seguridad por Capas:** Control de rutas prohibidas (ej. carpetas `.ssh` o archivos `.env`) y confirmación interactiva para herramientas de alto riesgo antes de su ejecución.
+- **Confirmación Rápida de Acciones Directas:** Salta llamadas innecesarias al LLM para confirmar de inmediato (latencia < 1ms) la ejecución de acciones mecánicas como abrir/cerrar apps (`"ejecuta vscode"`) o cargar URLs, generando las respuestas conversacionales localmente en español.
+- **Auto-Carga e Indexación Asíncrona:** Descubre y habilita automáticamente habilidades en el inicio, y realiza el primer escaneo de archivos y aplicaciones de escritorio en segundo plano si la base de datos local está vacía.
+- **Ciclo de Voz de Alto Rendimiento:** Utiliza binarios de C++ altamente optimizados (`piper` para TTS y `whisper.cpp` para STT) controlados directamente por Go, eliminando la sobrecarga y latencia de Python.
 
 ---
 
@@ -68,19 +68,25 @@ asistente/ (Directorio Raíz)
 ## 🛠️ Requisitos e Instalación
 
 Para ver la lista completa de requisitos y dependencias del sistema/modelos de IA, consulta:
-*   [dependencies.md](docs/dependencies.md)
+
+- [dependencies.md](docs/dependencies.md)
 
 Para compilar `whisper.cpp`, descargar los modelos locales e instalar todo el entorno, consulta:
-*   [compilation.md](docs/compilation.md)
+
+- [compilation.md](docs/compilation.md)
 
 Para solucionar problemas de interferencias de audio y ruido (música, películas, Netflix, etc.), consulta:
-*   [interferencias.md](docs/interferencias.md)
+
+- [interferencias.md](docs/interferencias.md)
 
 Para entender cómo funciona la base de datos local de SQLite, la indexación inteligente y cómo configurar servidores MCP externos en `mcp/mcp_config.json`, consulta:
-*   [db_y_mcp_config.md](docs/db_y_mcp_config.md)
+
+- [db_y_mcp_config.md](docs/db_y_mcp_config.md)
 
 ### Compilación e Instalación Rápida
+
 Puedes descargar dependencias y compilar todo automáticamente en la carpeta `bin/` usando el script provisto:
+
 ```bash
 chmod +x setup_and_build.sh
 ./setup_and_build.sh
@@ -93,7 +99,9 @@ chmod +x setup_and_build.sh
 Al ejecutar `./bin/rbot` por primera vez sin argumentos, se autogenera la configuración recomendada por defecto en `config/rbot.yaml`.
 
 ### 1. Indexar el Sistema
+
 Antes de comenzar, permite que RBot indexe tus archivos y programas instalados:
+
 ```bash
 # Indexa los archivos de tus carpetas permitidas en SQLite
 ./bin/rbot index paths
@@ -106,7 +114,9 @@ Antes de comenzar, permite que RBot indexe tus archivos y programas instalados:
 ```
 
 ### 2. Ejecutar mediante comandos de chat (CLI)
+
 Interactúa directamente mediante texto:
+
 ```bash
 ./bin/rbot chat "Abre mi proyecto Convertsystems en VS Code"
 ./bin/rbot chat "Recuerda que mi correo es usuario@example.com en la categoría personal"
@@ -114,21 +124,26 @@ Interactúa directamente mediante texto:
 ```
 
 ### 3. Activar el Modo de Voz Continuo (Espectacular 🎙️)
+
 Haz que RBot te escuche constantemente. Puedes despertarlo utilizando cualquiera de las palabras clave configuradas (`oye ronald`, `ey ronald`, `go ronald`, `ronald`, `rbot`):
+
 ```bash
 ./bin/rbot voice
 ```
+
 Una vez que despiertas a RBot, se mantendrá en **escucha continua y activa** (modo conversación). Ya no es necesario repetir la palabra clave para cada orden posterior.
 
 #### 💤 Comandos de Desactivación (Poner a Dormir)
-Para poner a RBot en modo de espera silencioso de nuevo, puedes pronunciar frases naturales como:
-* *"Eso es todo"* o *"Eso es todo por ahora"*
-* *"Gracias"* o *"Gracias Ronald"*
-* *"Vete a dormir"* o *"Duérmete"*
-* *"Apágate"*, *"Desactívate"* o *"Nada más"*
 
-RBot responderá *"Entendido señor, vuelvo al modo de espera"* y volverá a estar dormido esperando únicamente por una palabra de activación.
-*Nota: Si no dices nada durante 3 minutos, RBot se dormirá automáticamente por inactividad para no capturar conversaciones accidentales.*
+Para poner a RBot en modo de espera silencioso de nuevo, puedes pronunciar frases naturales como:
+
+- _"Eso es todo"_ o _"Eso es todo por ahora"_
+- _"Gracias"_ o _"Gracias Ronald"_
+- _"Vete a dormir"_ o _"Duérmete"_
+- _"Apágate"_, _"Desactívate"_ o _"Nada más"_
+
+RBot responderá _"Entendido señor, vuelvo al modo de espera"_ y volverá a estar dormido esperando únicamente por una palabra de activación.
+_Nota: Si no dices nada durante 3 minutos, RBot se dormirá automáticamente por inactividad para no capturar conversaciones accidentales._
 
 ---
 
@@ -145,21 +160,23 @@ go test -count=1 -v ./...
 ```
 
 La suite cubre:
-*   `rbot/cmd` (main): Limpieza de comandos de voz y alucinaciones de Whisper.
-*   `internal/agent`: Prompt de sistema dinámico y flujo completo de razonamiento LLM + tool calling con Ollama mockeado.
-*   `internal/config`: Carga, validación y resolución de rutas dinámicas.
-*   `internal/db`: Conexiones SQLite, esquemas e índice virtual FTS5.
-*   `internal/security`: Validaciones de criticidad y paths denegados.
-*   `internal/files`: Indexación incremental recursiva, búsqueda inteligente y alias.
-*   `internal/voice`: Conversión de audio, VAD en Go y diálogo fallback.
-*   `internal/mcp`: Conexión de herramientas MCP mediante JSON-RPC.
-*   `internal/apps`: Escaneo y parseo de lanzadores `.desktop`.
+
+- `rbot/cmd` (main): Limpieza de comandos de voz y alucinaciones de Whisper.
+- `internal/agent`: Prompt de sistema dinámico y flujo completo de razonamiento LLM + tool calling con Ollama mockeado.
+- `internal/config`: Carga, validación y resolución de rutas dinámicas.
+- `internal/db`: Conexiones SQLite, esquemas e índice virtual FTS5.
+- `internal/security`: Validaciones de criticidad y paths denegados.
+- `internal/files`: Indexación incremental recursiva, búsqueda inteligente y alias.
+- `internal/voice`: Conversión de audio, VAD en Go y diálogo fallback.
+- `internal/mcp`: Conexión de herramientas MCP mediante JSON-RPC.
+- `internal/apps`: Escaneo y parseo de lanzadores `.desktop`.
 
 ## ⚙️ Configuración (`config/rbot.yaml`)
 
 El archivo de configuración YAML te permite parametrizar el comportamiento:
-*   `agent.name`: Nombre con el que te responde el agente (ej. `RBot`).
-*   `agent.wake_words`: Lista de frases que lo despiertan (ej: `["oye ronald", "ey ronald", "rbot"]`).
-*   `model.model`: Modelo cargado en Ollama.
-*   `files.allowed_roots`: Carpetas seguras donde RBot tiene permitido buscar y resumir archivos.
-*   `security.blocked_paths`: Directorios privados donde RBot tiene estrictamente prohibido ingresar (bloquea por defecto carpetas `.ssh`, claves privadas y ficheros `.env`).
+
+- `agent.name`: Nombre con el que te responde el agente (ej. `RBot`).
+- `agent.wake_words`: Lista de frases que lo despiertan (ej: `["oye ronald", "ey ronald", "rbot"]`).
+- `model.model`: Modelo cargado en Ollama.
+- `files.allowed_roots`: Carpetas seguras donde RBot tiene permitido buscar y resumir archivos.
+- `security.blocked_paths`: Directorios privados donde RBot tiene estrictamente prohibido ingresar (bloquea por defecto carpetas `.ssh`, claves privadas y ficheros `.env`).
