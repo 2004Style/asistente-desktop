@@ -16,6 +16,11 @@ type Config struct {
 		VoiceEnabled bool     `yaml:"voice_enabled"`
 		WakeWords    []string `yaml:"wake_words"`
 	} `yaml:"agent"`
+	Personality struct {
+		Role  string `yaml:"role"`
+		Style string `yaml:"style"`
+		Humor bool   `yaml:"humor"`
+	} `yaml:"personality"`
 	Model struct {
 		Provider    string  `yaml:"provider"`
 		BaseURL     string  `yaml:"base_url"`
@@ -73,6 +78,10 @@ func LoadConfig(path string) (*Config, error) {
 		defaultConfig.Agent.LocalFirst = true
 		defaultConfig.Agent.VoiceEnabled = true
 		defaultConfig.Agent.WakeWords = []string{"oye ronald", "ey ronald", "go ronald", "hola ronald", "ronald", "rbot"}
+
+		defaultConfig.Personality.Role = "operador personal de escritorio Linux"
+		defaultConfig.Personality.Style = "mayordomo tecnológico elegante: sereno, preciso, discreto, técnico y confiable"
+		defaultConfig.Personality.Humor = true
 
 		defaultConfig.Model.Provider = "ollama"
 		defaultConfig.Model.BaseURL = "http://localhost:11434"

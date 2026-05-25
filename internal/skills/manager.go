@@ -8,16 +8,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type SkillMetadata struct {
-	Name          string   `json:"name"`
-	Description   string   `json:"description"`
-	Version       string   `json:"version"`
-	Author        string   `json:"author"`
-	Permissions   []string `json:"permissions"`
-	RiskLevel     string   `json:"risk_level"`
-	VoiceTriggers []string `json:"voice_triggers"`
+	Name             string              `json:"name"`
+	Description      string              `json:"description"`
+	Version          string              `json:"version"`
+	Author           string              `json:"author"`
+	Permissions      []string            `json:"permissions"`
+	RiskLevel        string              `json:"risk_level"`
+	Priority         int                 `json:"priority"`
+	Category         string              `json:"category"`
+	Exclusive        bool                `json:"exclusive"`
+	Intents          []string            `json:"intents"`
+	Tools            []string            `json:"tools"`
+	VoiceTriggers    []string            `json:"voice_triggers"`
+	NegativeTriggers []string            `json:"negative_triggers"`
+	RequiredSlots    map[string][]string `json:"required_slots"`
 }
 
 // ScanSkills escanea el directorio de habilidades buscando archivos SKILL.md y los indexa en SQLite.
@@ -64,17 +73,25 @@ func ScanSkills(db *sql.DB, skillsDir string) error {
 
 		// Guardar en la base de datos (deshabilitada por defecto)
 		query := `
-		INSERT INTO skills (name, description, version, path, skill_md_path, frontmatter_json, permissions_json, risk_level, enabled, trusted)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
+		INSERT INTO skills (name, description, version, path, skill_md_path, frontmatter_json, permissions_json, risk_level, priority, category, exclusive, enabled, trusted)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
 		ON CONFLICT(name) DO UPDATE SET
 			description = excluded.description,
 			version = excluded.version,
 			frontmatter_json = excluded.frontmatter_json,
 			permissions_json = excluded.permissions_json,
-			risk_level = excluded.risk_level;
+			risk_level = excluded.risk_level,
+			priority = excluded.priority,
+			category = excluded.category,
+			exclusive = excluded.exclusive;
 		`
 
-		_, err = db.Exec(query, meta.Name, meta.Description, meta.Version, folderPath, skillMdPath, string(frontmatterJSON), string(permsJSON), meta.RiskLevel)
+		exclusiveInt := 0
+		if meta.Exclusive {
+			exclusiveInt = 1
+		}
+
+		_, err = db.Exec(query, meta.Name, meta.Description, meta.Version, folderPath, skillMdPath, string(frontmatterJSON), string(permsJSON), meta.RiskLevel, meta.Priority, meta.Category, exclusiveInt)
 		if err == nil {
 			// Añadir al search_index FTS5
 			var entityID int64
@@ -116,68 +133,28 @@ func DisableSkill(db *sql.DB, name string) error {
 	return nil
 }
 
-// FindMatchingSkills busca habilidades habilitadas que coincidan con la intención del usuario.
-// Prioriza coincidencias en voice_triggers, y luego usa FTS5 sobre la descripción/nombre.
-func FindMatchingSkills(db *sql.DB, userInput string) ([]SkillMetadata, error) {
-	userInputLower := strings.ToLower(strings.TrimSpace(userInput))
-	var matched []SkillMetadata
-	matchedNames := make(map[string]bool)
+// GetAllEnabledSkills obtiene todas las habilidades que están habilitadas en la base de datos.
+// La lógica de coincidencia (scoring) será manejada por el IntentRouter.
+func GetAllEnabledSkills(db *sql.DB) ([]SkillMetadata, error) {
+	var enabledSkills []SkillMetadata
 
-	// 1. Obtener todas las habilidades habilitadas
-	rows, err := db.Query("SELECT name, frontmatter_json FROM skills WHERE enabled = 1")
+	rows, err := db.Query("SELECT frontmatter_json FROM skills WHERE enabled = 1")
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var name, frontmatterJSON string
-		if err := rows.Scan(&name, &frontmatterJSON); err == nil {
+		var frontmatterJSON string
+		if err := rows.Scan(&frontmatterJSON); err == nil {
 			var meta SkillMetadata
 			if err := json.Unmarshal([]byte(frontmatterJSON), &meta); err == nil {
-				// Comprobar voice triggers
-				for _, trigger := range meta.VoiceTriggers {
-					triggerLower := strings.ToLower(trigger)
-					if triggerLower != "" && strings.Contains(userInputLower, triggerLower) {
-						if !matchedNames[meta.Name] {
-							matched = append(matched, meta)
-							matchedNames[meta.Name] = true
-						}
-						break
-					}
-				}
+				enabledSkills = append(enabledSkills, meta)
 			}
 		}
 	}
 
-	// 2. Coincidencia FTS5 como fallback o complemento
-	words := strings.Fields(userInputLower)
-	if len(words) > 0 {
-		ftsQuery := strings.Join(words, " OR ")
-		ftsRows, err := db.Query(`
-			SELECT s.name, s.frontmatter_json 
-			FROM skills s
-			JOIN search_index idx ON idx.entity_id = s.id AND idx.entity_type = 'skill'
-			WHERE s.enabled = 1 AND search_index MATCH ?
-		`, ftsQuery)
-		if err == nil {
-			defer ftsRows.Close()
-			for ftsRows.Next() {
-				var name, frontmatterJSON string
-				if err := ftsRows.Scan(&name, &frontmatterJSON); err == nil {
-					if !matchedNames[name] {
-						var meta SkillMetadata
-						if err := json.Unmarshal([]byte(frontmatterJSON), &meta); err == nil {
-							matched = append(matched, meta)
-							matchedNames[name] = true
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return matched, nil
+	return enabledSkills, nil
 }
 
 // LoadSkillBody lee y retorna el contenido completo de un SKILL.md de una habilidad.
@@ -204,15 +181,8 @@ func parseSkillMd(path string) (*SkillMetadata, error) {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	meta := &SkillMetadata{
-		Permissions:   []string{},
-		VoiceTriggers: []string{},
-	}
-
-	inFrontmatter := false
+	var frontmatterLines []string
 	dashCount := 0
-	inPermissions := false
-	inVoiceTriggers := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -220,76 +190,35 @@ func parseSkillMd(path string) (*SkillMetadata, error) {
 
 		if trimmed == "---" {
 			dashCount++
-			if dashCount == 1 {
-				inFrontmatter = true
-				continue
-			} else if dashCount == 2 {
-				inFrontmatter = false
-				break // Termina de leer metadatos
+			if dashCount == 2 {
+				break
 			}
-		}
-
-		if !inFrontmatter {
 			continue
 		}
 
-		// Detectar inicio de bloque permissions:
-		if strings.HasPrefix(trimmed, "permissions:") {
-			inPermissions = true
-			inVoiceTriggers = false
-			continue
-		}
-
-		// Detectar inicio de bloque voice_triggers:
-		if strings.HasPrefix(trimmed, "voice_triggers:") {
-			inVoiceTriggers = true
-			inPermissions = false
-			continue
-		}
-
-		// Si estamos en el bloque de permisos, leer elementos de lista
-		if inPermissions {
-			if strings.HasPrefix(trimmed, "-") {
-				perm := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-				meta.Permissions = append(meta.Permissions, perm)
-				continue
-			} else if strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
-				inPermissions = false
-			}
-		}
-
-		// Si estamos en el bloque de voice_triggers, leer elementos de lista
-		if inVoiceTriggers {
-			if strings.HasPrefix(trimmed, "-") {
-				trigger := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-				trigger = strings.Trim(trigger, `"'`) // Quitar comillas
-				meta.VoiceTriggers = append(meta.VoiceTriggers, trigger)
-				continue
-			} else if strings.Contains(trimmed, ":") && !strings.HasPrefix(trimmed, "-") {
-				inVoiceTriggers = false
-			}
-		}
-
-		if strings.Contains(trimmed, ":") {
-			parts := strings.SplitN(trimmed, ":", 2)
-			key := strings.ToLower(strings.TrimSpace(parts[0]))
-			val := strings.TrimSpace(parts[1])
-			val = strings.Trim(val, `"'`) // Quitar comillas simples/dobles
-
-			switch key {
-			case "name":
-				meta.Name = val
-			case "description":
-				meta.Description = val
-			case "version":
-				meta.Version = val
-			case "author":
-				meta.Author = val
-			case "risk_level":
-				meta.RiskLevel = val
-			}
+		if dashCount == 1 {
+			frontmatterLines = append(frontmatterLines, line)
 		}
 	}
 
-	return meta, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	yamlContent := strings.Join(frontmatterLines, "\n")
+	
+	meta := &SkillMetadata{
+		Permissions:      []string{},
+		VoiceTriggers:    []string{},
+		NegativeTriggers: []string{},
+		Intents:          []string{},
+		Tools:            []string{},
+		RequiredSlots:    make(map[string][]string),
+	}
+
+	if err := yaml.Unmarshal([]byte(yamlContent), meta); err != nil {
+		return nil, fmt.Errorf("error parseando YAML en %s: %v", path, err)
+	}
+
+	return meta, nil
 }

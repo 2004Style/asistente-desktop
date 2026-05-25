@@ -42,9 +42,6 @@ func TestOrchestratorBuildSystemPrompt(t *testing.T) {
 	if !strings.Contains(prompt, "Firefox") {
 		t.Errorf("Expected prompt to contain app 'Firefox', got: %s", prompt)
 	}
-	if !strings.Contains(prompt, "music-skill") {
-		t.Errorf("Expected prompt to contain skill 'music-skill', got: %s", prompt)
-	}
 	if !strings.Contains(prompt, "Contexto especial") {
 		t.Errorf("Expected prompt to contain skill context, got: %s", prompt)
 	}

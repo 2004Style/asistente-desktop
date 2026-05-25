@@ -19,8 +19,10 @@ import (
 
 	"rbot/internal/desktop"
 	"rbot/internal/files"
+	"rbot/internal/intent"
 	"rbot/internal/mcp"
 	"rbot/internal/ollama"
+	"rbot/internal/personality"
 	"rbot/internal/security"
 	"rbot/internal/skills"
 )
@@ -57,7 +59,8 @@ func NewOrchestrator(db *sql.DB, ollamaClient *ollama.Client, mcpManager *mcp.Se
 // BuildSystemPrompt genera el prompt con memoria de usuario, habilidades/skills activas y metadatos del sistema en tiempo real
 func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
 	var memoryParts []string
-	rows, err := o.DB.Query("SELECT category, key, value FROM user_memory")
+	// Limitar a top 5 memorias recientes/relevantes
+	rows, err := o.DB.Query("SELECT category, key, value FROM user_memory ORDER BY updated_at DESC LIMIT 5")
 	if err == nil {
 		defer rows.Close()
 		for rows.Next() {
@@ -68,7 +71,7 @@ func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
 		}
 	}
 
-	memoryStr := "No hay datos recordados todavía."
+	memoryStr := "No hay datos recordados relevantes."
 	if len(memoryParts) > 0 {
 		memoryStr = strings.Join(memoryParts, "\n")
 	}
@@ -76,9 +79,9 @@ func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
 	// 1. Obtener fecha y hora actual
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
 
-	// 2. Obtener lista de aplicaciones disponibles
+	// 2. Obtener lista de aplicaciones disponibles limitadas
 	var appsParts []string
-	appRows, err := o.DB.Query("SELECT display_name, executable FROM app_launchers WHERE is_available = 1")
+	appRows, err := o.DB.Query("SELECT display_name, executable FROM app_launchers WHERE is_available = 1 LIMIT 15")
 	if err == nil {
 		defer appRows.Close()
 		for appRows.Next() {
@@ -93,58 +96,66 @@ func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
 		appsStr = strings.Join(appsParts, "\n")
 	}
 
-	// 3. Obtener lista de skills registradas
-	var skillsParts []string
-	skillRows, err := o.DB.Query("SELECT name, description FROM skills WHERE enabled = 1")
-	if err == nil {
-		defer skillRows.Close()
-		for skillRows.Next() {
-			var name, desc string
-			if err := skillRows.Scan(&name, &desc); err == nil {
-				skillsParts = append(skillsParts, fmt.Sprintf("- %s: %s", name, desc))
-			}
-		}
-	}
-	skillsStr := "No hay habilidades adicionales registradas."
-	if len(skillsParts) > 0 {
-		skillsStr = strings.Join(skillsParts, "\n")
-	}
-
 	skillsSection := ""
 	if len(skillContexts) > 0 {
-		skillsSection = fmt.Sprintf("\n[HABILIDADES / SKILLS ACTIVAS PARA ESTA SOLICITUD]\nSigue fielmente las siguientes instrucciones para procesar la orden:\n%s\n", strings.Join(skillContexts, "\n"))
+		skillsSection = fmt.Sprintf("\n[HABILIDADES / SKILLS RELEVANTES]\nSigue fielmente las siguientes instrucciones para procesar la orden:\n%s\n", strings.Join(skillContexts, "\n"))
 	}
 
-	return fmt.Sprintf(`Eres RBot, un asistente de voz y agente de automatización local muy servicial, educado, cálido y humanizado.
-Trata al usuario de "señor" de forma respetuosa y cortés.
-Responde de forma muy corta, directa y natural en español.
+	return fmt.Sprintf(`Eres el asistente personal de escritorio de %s. Operas en Linux y ayudas a controlar aplicaciones, ventanas, workspaces, navegador, música, archivos, terminal, procesos, servicios, Docker, proyectos de desarrollo y búsquedas de información.
 
-[INSTRUCCIONES CLAVE]
-- Para abrir aplicaciones, páginas web, buscar archivos o leer carpetas, debes EJECUTAR la herramienta correspondiente de inmediato.
-- NUNCA hagas preguntas aclaratorias al usuario si puedes decidir una opción razonable (por ejemplo, si te pide abrir "el navegador", llama a la herramienta inmediatamente usando el valor "navegador"; si te pide ver o resumir "Descargas", llama a files.read_file inmediatamente con el valor "Descargas").
-- Tu respuesta final debe confirmar la acción de forma muy corta y natural en español (ej. "Abriendo el navegador, señor" o "Aquí tiene el resumen de sus descargas, señor").
-- NUNCA muestres códigos, nombres de funciones técnicas (como "desktop.open_app") ni le expliques al usuario cómo usar las herramientas.
-- REGLA DE ORO DE RESPUESTA: NUNCA pronuncies ni escribas enlaces URL completos ni rutas de archivo absolutas locales (ej: '/home/usuario/...', 'https://youtube.com/...', etc.) en tus confirmaciones de voz/texto al usuario. Es molesto escucharlas leídas. En su lugar, nombra la aplicación, carpeta o video amigablemente (ej. "He abierto Descargas", "Reproduciendo Linkin Park", etc.).
-- Excepción: Solo si el usuario te está pidiendo específicamente resúmenes de información, noticias o búsquedas detalladas, debes proporcionarle el contenido solicitado con detalle, pero siempre de manera natural y sin enlaces técnicos.
-- **PLANIFICACIÓN Y MULTI-TAREAS**: Si el usuario te pide varias cosas en una sola frase (ej. "abre vscode, abre la terminal y pon música chill"), DEBES llamar a múltiples herramientas secuencialmente en tu respuesta de herramientas (Tool Calling) en el orden en que fueron solicitadas.
-- **RESOLUCIÓN INTELIGENTE DE RUTA/PROYECTO**: Si te pide abrir o trabajar en "mi proyecto", "el proyecto principal", "la cli" o "un proyecto" y no sabes la ruta exacta, utiliza primero files.search_index(query="cli") o similar para localizar la ruta física correcta en disco antes de intentar abrirla o realizar acciones sobre ella.
-- **LEER Y RESUMIR PÁGINAS WEB**: Si te pide resumir, leer o responder sobre una dirección URL o sitio web específico (ej. "dame un resumen de la página convertsystems.site"), debes ejecutar la herramienta browser.read_url(url="<URL>") para extraer su texto real y luego elaborar tu respuesta.
-- **BÚSQUEDAS DE MÚSICA IMPRECISAS**: Si te pide "música chill", "para programar", "para concentrarme" o "música hacker", traduce esto a términos lógicos para la herramienta (ej. "lofi hip hop beats", "musica tranquila estudiar", "synthwave coder music").
+Tu personalidad está inspirada en un mayordomo tecnológico elegante: sereno, preciso, discreto, técnico, confiable y con humor seco muy ocasional.
+
+Tu objetivo no es solo ejecutar órdenes, sino operar con criterio.
+
+Reglas de comportamiento:
+1. Observa antes de actuar.
+2. Reutiliza ventanas, pestañas, procesos y rutas existentes cuando sea posible.
+3. Evita duplicar aplicaciones, navegadores, terminales o pestañas.
+4. Verifica el resultado después de actuar.
+5. Si una acción es destructiva o riesgosa, pide confirmación.
+6. Si el usuario es ambiguo, resuelve con contexto o muestra candidatos.
+7. Si no puedes verificar algo, dilo claramente.
+8. No uses sudo sin permiso.
+9. No borres, sobrescribas, muevas en masa, mates procesos, reinicies servicios ni instales paquetes sin confirmación.
+10. No muestres secretos, tokens, claves privadas ni valores sensibles.
+
+Estilo de respuesta:
+- Acciones simples: breve y seguro.
+- Diagnósticos: claro y técnico.
+- Errores: sereno y útil.
+- Riesgos: cauteloso.
+- Finalización: elegante y corta.
+- Usa lenguaje natural en español sin revelar URLs crudas ni rutas absolutas.
+
+Frases base (ejemplos a seguir):
+- "Entendido. Procediendo."
+- "Estoy revisando el entorno."
+- "He localizado el objetivo."
+- "No recomiendo continuar sin verificar esto primero."
+- "No realizaré cambios destructivos sin confirmación."
+- "Operación completada."
+- "Todo quedó en orden."
+- "He encontrado un inconveniente. Tengo una posible causa."
+
+Evita:
+- "Comando recibido."
+- "Sistema inicializado."
+- "Ejecutando protocolo."
+- Frases excesivamente robóticas.
+- Bromas constantes.
+- Confirmaciones innecesarias para acciones simples.
+
+[HABILIDADES / SKILLS RELEVANTES]
+%s
 
 [METADATOS DEL SISTEMA (TIEMPO REAL)]
 - Fecha y hora actual: %s
-- Aplicaciones instaladas en el sistema:
-%s
-- Habilidades generales registradas:
+- Aplicaciones comunes en el sistema:
 %s
 
 [DATOS RECORDADOS DEL USUARIO]
 %s
-%s
-[REGLAS DE SEGURIDAD]
-- Nunca leas o expongas archivos sensibles como .env, .ssh, .gnupg o claves privadas.
-- Si vas a realizar una acción de alto riesgo (ej. ejecutar comandos complejos, borrar directorios, o cerrar procesos del sistema), debes solicitar confirmación explícita o advertir al usuario.
-`, currentTime, appsStr, skillsStr, memoryStr, skillsSection)
+`, "2004Style", skillsSection, currentTime, appsStr, memoryStr)
 }
 
 // GetAvailableTools consolida herramientas internas y MCP en formato compatible con Ollama
@@ -198,7 +209,7 @@ func (o *Orchestrator) GetAvailableTools(ctx context.Context) []ollama.Tool {
 				Properties: map[string]interface{}{
 					"url": map[string]interface{}{
 						"type":        "string",
-						"description": "Sitio web o dirección URL a abrir.",
+						"description": "Sitio web o dirección URL exacta a abrir. DEBE ser un dominio válido (ej: youtube.com) o URL completa (ej: https://github.com), NUNCA frases, espacios ni contexto natural.",
 					},
 				},
 				Required: []string{"url"},
@@ -561,16 +572,19 @@ func interfaceSliceToStringSlice(i interface{}) []string {
 
 // Chat realiza un paso conversacional resolviendo llamadas a herramientas si Ollama las requiere.
 func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []ollama.Message) (string, error) {
-	// Cargar skills activas que coincidan con la entrada del usuario
-	matchedSkills, err := skills.FindMatchingSkills(o.DB, userInput)
+	// Cargar skills activas que coincidan con la entrada del usuario mediante IntentRouter
+	router := intent.NewRouter(o.DB)
+	candidates := router.Match(userInput)
+
 	var skillContexts []string
-	if err == nil && len(matchedSkills) > 0 {
-		log.Printf("[Orchestrator] Cargando %d habilidad(es) para el prompt:", len(matchedSkills))
-		for _, s := range matchedSkills {
-			log.Printf(" - %s", s.Name)
-			body, err := skills.LoadSkillBody(o.DB, s.Name)
+	if len(candidates) > 0 {
+		topCandidates := intent.TopN(candidates, 3)
+		log.Printf("[Orchestrator] Cargando %d habilidad(es) top para el prompt:", len(topCandidates))
+		for _, s := range topCandidates {
+			log.Printf(" - %s (Confianza: %.2f)", s.SkillName, s.Confidence)
+			body, err := skills.LoadSkillBody(o.DB, s.SkillName)
 			if err == nil {
-				skillContexts = append(skillContexts, fmt.Sprintf("Habilidad: %s\n%s", s.Name, body))
+				skillContexts = append(skillContexts, fmt.Sprintf("Habilidad: %s\n%s", s.SkillName, body))
 			}
 		}
 	}
@@ -661,36 +675,42 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 
 		// Generar confirmación conversacional inmediata para acciones mecánicas y rápidas
 		// Esto evita llamadas lentas al LLM (Ollama) de 10-15 segundos solo para confirmar la ejecución.
+		var confirmationText string
 		if lastErr != nil {
-			return fmt.Sprintf("Se intentó ejecutar la acción, pero ocurrió un problema: %v", lastErr), nil
+			state := personality.StateError
+			if strings.Contains(lastErr.Error(), "confirmación conversacional requerida") || strings.Contains(lastErr.Error(), "cancelado por el usuario") {
+				state = personality.StateConfirming
+			}
+			confirmationText = personality.ComposeResponse(personality.ResponseContext{
+				State: state,
+				Error: lastErr,
+				AgentName: o.AgentName,
+			})
+			return confirmationText, nil
 		}
 
-		var confirmationText string
 		if len(directActions) == 1 {
 			act := directActions[0]
-			switch act.ToolName {
-			case "desktop.open_app":
-				app, _ := act.Args["app"].(string)
-				// Limpiar ruta de binarios para mostrar un nombre amigable
-				appName := filepath.Base(app)
-				if appName == "code" {
-					appName = "VS Code"
-				}
-				confirmationText = fmt.Sprintf("Entendido señor, he lanzado la aplicación %s.", appName)
-			case "desktop.close_app":
-				app, _ := act.Args["app"].(string)
-				appName := filepath.Base(app)
-				if appName == "code" {
-					appName = "VS Code"
-				}
-				confirmationText = fmt.Sprintf("Listo señor, he cerrado la aplicación %s.", appName)
-			case "browser.open_url":
-				confirmationText = "Entendido señor, he abierto el enlace en su navegador."
-			default:
-				confirmationText = "Acción completada con éxito, señor."
+			var target string
+			if app, ok := act.Args["app"].(string); ok {
+				target = filepath.Base(app)
+			} else if urlArg, ok := act.Args["url"].(string); ok {
+				target = urlArg
 			}
+
+			confirmationText = personality.ComposeResponse(personality.ResponseContext{
+				State:    personality.StateDone,
+				Risk:     personality.RiskLow,
+				ToolName: act.ToolName,
+				Target:   target,
+				AgentName: o.AgentName,
+			})
 		} else {
-			confirmationText = "Acciones completadas con éxito, señor."
+			confirmationText = personality.ComposeResponse(personality.ResponseContext{
+				State:    personality.StateDone,
+				Risk:     personality.RiskLow,
+				AgentName: o.AgentName,
+			})
 		}
 
 		return confirmationText, nil
@@ -1020,25 +1040,40 @@ func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args ma
 		return fmt.Sprintf("Carpeta '%s' abierta en el explorador de archivos.", resolvedPath), nil
 
 	case "browser.open_url":
-		targetURL, _ := args["url"].(string)
-		if targetURL == "" {
-			return "", fmt.Errorf("argumento 'url' requerido")
+		urlVal, ok := args["url"].(string)
+		if !ok {
+			return "", fmt.Errorf("argumento 'url' faltante o inválido para browser.open_url")
 		}
-
-		// Autocompletar http si no tiene
-		if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
-			if strings.Contains(targetURL, "whatsapp") {
-				targetURL = "https://web.whatsapp.com"
-			} else {
-				targetURL = "https://" + targetURL
+		
+		// Limpiar URL si el LLM metió espacios o texto natural
+		if strings.Contains(urlVal, " ") {
+			// Intentar extraer solo la parte que parece un dominio/url (la primera palabra válida)
+			parts := strings.Split(urlVal, " ")
+			for _, p := range parts {
+				if strings.Contains(p, ".") || strings.HasPrefix(p, "http") {
+					urlVal = p
+					break
+				}
+			}
+			// Si todavía tiene espacios, tomar solo la primera palabra
+			if strings.Contains(urlVal, " ") {
+				urlVal = strings.Split(urlVal, " ")[0]
 			}
 		}
 
-		err := desktop.OpenURL(targetURL)
+		if !strings.HasPrefix(urlVal, "http://") && !strings.HasPrefix(urlVal, "https://") {
+			if strings.Contains(urlVal, "whatsapp") {
+				urlVal = "https://web.whatsapp.com"
+			} else {
+				urlVal = "https://" + urlVal
+			}
+		}
+
+		err := desktop.OpenURL(urlVal)
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("Navegador abierto en la URL: %s", targetURL), nil
+		return fmt.Sprintf("Navegador abierto en la URL: %s", urlVal), nil
 
 	case "browser.read_url":
 		targetURL, _ := args["url"].(string)

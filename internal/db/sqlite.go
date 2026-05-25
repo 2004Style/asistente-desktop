@@ -119,6 +119,9 @@ CREATE TABLE IF NOT EXISTS skills (
     frontmatter_json TEXT,
     permissions_json TEXT,
     risk_level TEXT DEFAULT 'medium',
+    priority INTEGER DEFAULT 0,
+    category TEXT,
+    exclusive INTEGER DEFAULT 0,
     enabled INTEGER DEFAULT 0,
     trusted INTEGER DEFAULT 0,
     source TEXT,
@@ -246,6 +249,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("error al crear el esquema inicial: %v", err)
 	}
+
+	// Migraciones (ignoramos errores si las columnas ya existen)
+	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN priority INTEGER DEFAULT 0;")
+	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN category TEXT;")
+	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN exclusive INTEGER DEFAULT 0;")
 
 	return db, nil
 }

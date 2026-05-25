@@ -85,6 +85,9 @@ Apaga el sistema.
 			frontmatter_json TEXT,
 			permissions_json TEXT,
 			risk_level TEXT,
+			priority INTEGER DEFAULT 0,
+			category TEXT,
+			exclusive INTEGER DEFAULT 0,
 			enabled INTEGER DEFAULT 0,
 			trusted INTEGER DEFAULT 0,
 			created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -139,35 +142,27 @@ Apaga el sistema.
 		t.Errorf("Expected youtube-music-test to be disabled (0), got %d", enabled)
 	}
 
-	// 6. Test FindMatchingSkills
+	// 6. Test GetAllEnabledSkills
 	// Enable both skills for searching tests
 	_, _ = db.Exec("UPDATE skills SET enabled = 1")
 
-	// Match via voice trigger
-	matched, err := FindMatchingSkills(db, "Oye Ronald pon música de Phonk por favor")
+	enabledSkills, err := GetAllEnabledSkills(db)
 	if err != nil {
-		t.Fatalf("FindMatchingSkills returned error: %v", err)
+		t.Fatalf("GetAllEnabledSkills returned error: %v", err)
 	}
 
-	if len(matched) != 1 {
-		t.Fatalf("Expected 1 match, got %d", len(matched))
+	if len(enabledSkills) != 2 {
+		t.Fatalf("Expected 2 matches, got %d", len(enabledSkills))
 	}
 
-	if matched[0].Name != "youtube-music-test" {
-		t.Errorf("Expected match name to be 'youtube-music-test', got %q", matched[0].Name)
+	foundYoutube := false
+	for _, s := range enabledSkills {
+		if s.Name == "youtube-music-test" {
+			foundYoutube = true
+		}
 	}
-
-	// 7. Test LoadSkillBody
-	// (Since search_index mock does not support full FTS5 virtual table engine MATCH operations
-	// out of the box in simple query matching without FTS setup, but FindMatchingSkills queries MATCH,
-	// let's verify if the voice_triggers matching works correctly which is the primary route.
-	// We'll also query system-off-test voice trigger)
-	matchedSys, err := FindMatchingSkills(db, "apagar computadora de inmediato")
-	if err != nil {
-		t.Fatalf("FindMatchingSkills returned error: %v", err)
-	}
-	if len(matchedSys) != 1 || matchedSys[0].Name != "system-off-test" {
-		t.Errorf("Expected matching system-off-test by trigger, got: %v", matchedSys)
+	if !foundYoutube {
+		t.Errorf("Expected to find youtube-music-test among enabled skills")
 	}
 
 	// 7. Test LoadSkillBody

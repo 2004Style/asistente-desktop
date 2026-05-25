@@ -31,11 +31,13 @@ show_help() {
     echo -e "  ${GREEN}navegador / musica${NC}     - Navegador, música, búsquedas web coloquiales y resúmenes de URL."
     echo -e "  ${GREEN}archivos / gestion${NC}     - Creación, edición, borrado, ambigüedades, y rutas implícitas."
     echo -e "  ${GREEN}sistema / system${NC}       - Seguridad interactiva y tareas complejas encadenadas/globales."
+    echo -e "  ${GREEN}linux / avanzado${NC}       - Pruebas del entorno Linux, procesos pesados, contenedores docker, workspaces."
     echo -e "  ${GREEN}(sin argumentos)${NC}      - Ejecuta todas las categorías de pruebas secuencialmente."
     echo -e ""
     echo -e "Ejemplos:"
     echo -e "  $0 archivos"
     echo -e "  $0 sistema"
+    echo -e "  $0 linux"
 }
 
 # Parsear categoría por parámetro
@@ -57,6 +59,9 @@ if [ -n "$1" ]; then
             ;;
         sistema|system)
             CATEGORY="sistema"
+            ;;
+        linux|avanzado)
+            CATEGORY="linux"
             ;;
         *)
             echo -e "${RED}Categoría '$1' no válida.${NC}"
@@ -209,6 +214,9 @@ run_programas() {
         "abre vscode en la carpeta de convertsystems|action|code"
         "abre mi carpeta de proyectos|action|nautilus"
         "abre “bisual”|action|code"
+        "abre el coso ese donde programo|action|code"
+        "habre visual en mi proyecyo|action|code"
+        "abre el programa ese que no sé cómo se llama|action|browser"
         
         # Cerrar programas
         "cierra el navegador|action|browser"
@@ -542,6 +550,7 @@ run_sistema() {
         "prepara todo para trabajar en mi proyecto de la cli"
         "abre tres cosas: terminal, navegador y gestor de archivos"
         "pon música, abre mi editor y crea una carpeta para pruebas"
+        "Bro abre lo necesario para programar, ponme música chill, busca lo de clean hexagonal para mi cli y crea por ahí una nota con lo importante, no borres nada y si algo falla me avisas."
     )
     for query in "${global_tests[@]}"; do
         echo -e "\n${YELLOW}PROBANDO MULTI-TAREA: '${query}'${NC}"
@@ -575,6 +584,35 @@ run_sistema() {
     fi
 }
 
+run_linux() {
+    echo -e "\n${BLUE}================================================================${NC}"
+    echo -e "${BLUE}          INICIANDO PRUEBAS AVANZADAS DE LINUX/SISTEMA          ${NC}"
+    echo -e "${BLUE}================================================================${NC}"
+    
+    local linux_tests=(
+        "dime si docker está corriendo|llm_summary|docker"
+        "dime si pipewire está activo|llm_summary|pipewire"
+        "revisa si tengo pnpm instalado|llm_summary|pnpm"
+        "dime qué procesos consumen más RAM|llm_summary|procesos"
+        "revisa si el puerto 3000 está ocupado|llm_summary|puerto"
+        "dime si mi sesión gráfica está funcionando en Wayland|llm_summary|wayland"
+        "Tengo YouTube abierto con música. Cambia a otra música parecida, pero usa la misma pestaña o ventana. No abras otra pestaña, no cambies de workspace si no hace falta, y al final dime si el número de ventanas cambió.|llm_summary|youtube"
+    )
+    for query in "${linux_tests[@]}"; do
+        IFS="|" read -r phrasing type check <<< "$query"
+        echo -e "\n${YELLOW}PROBANDO LINUX AVANZADO: '${phrasing}'${NC}"
+        output=$(./bin/rbot chat "${phrasing}" 2>&1)
+        echo "$output"
+        if echo "$output" | grep -iqE "$check|revisando|información|estado|encontré|ejecutando"; then
+            echo -e "${GREEN}[OK] Consulta avanzada a nivel sistema procesada.${NC}"
+            log_report "${phrasing}" "OK" "Consulta Linux procesada."
+        else
+            echo -e "${RED}[ERROR] Fallo en la inspección avanzada de sistema.${NC}"
+            log_report "${phrasing}" "ERROR" "Fallo en consulta Linux avanzada."
+        fi
+    done
+}
+
 # --- EJECUCIÓN PRINCIPAL ---
 
 echo -e "${BLUE}================================================================${NC}"
@@ -590,6 +628,7 @@ if [ -z "$CATEGORY" ]; then
     run_navegador
     run_archivos
     run_sistema
+    run_linux
 else
     echo -e "${BLUE}Ejecutando categoría de pruebas: ${GREEN}${CATEGORY}${NC}"
     case "$CATEGORY" in
@@ -604,6 +643,9 @@ else
             ;;
         "sistema")
             run_sistema
+            ;;
+        "linux")
+            run_linux
             ;;
     esac
 fi

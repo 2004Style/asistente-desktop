@@ -16,6 +16,7 @@ import (
 	"rbot/internal/config"
 	"rbot/internal/db"
 	"rbot/internal/files"
+	"rbot/internal/intent"
 	"rbot/internal/mcp"
 	"rbot/internal/ollama"
 	"rbot/internal/skills"
@@ -38,12 +39,13 @@ func main() {
 	}
 	defer database.Close()
 
-	// Autodescubrimiento y auto-habilitación de habilidades
+	// Autodescubrimiento de habilidades
 	if conf.Skills.AutoDiscover {
 		skillsPath := db.ExpandPath(conf.Skills.Path)
 		if err := skills.ScanSkills(database, skillsPath); err == nil {
-			// Auto-habilitar todas al iniciar en segundo plano o de forma directa
-			_, _ = database.Exec("UPDATE skills SET enabled = 1")
+			// Las habilidades inician deshabilitadas por defecto.
+			// Nos aseguramos de mantener apagadas las de alto riesgo.
+			_, _ = database.Exec("UPDATE skills SET enabled = 0 WHERE risk_level IN ('high', 'critical')")
 		} else {
 			log.Printf("[Warning] Error en auto-discovery de skills: %v", err)
 		}
@@ -325,7 +327,7 @@ Cuando el usuario pida "%s":
 		lastInteraction := time.Now()
 		timeoutDuration := 3 * time.Minute // 3 minutos de inactividad antes de desactivarse automáticamente
 
-		_ = voice.Speak("Sistema inicializado. Estoy listo.")
+		_ = voice.Speak("Entorno preparado, señor. Estoy atento a sus instrucciones.")
 
 		for {
 			// Comprobar si expiró por inactividad
@@ -353,7 +355,7 @@ Cuando el usuario pida "%s":
 			}
 
 			// Filtrar alucinaciones de Whisper basadas en silencio/ruido de fondo
-			if isWhisperHallucination(texto) {
+			if intent.IsWhisperHallucination(texto) {
 				continue
 			}
 
@@ -403,7 +405,7 @@ Cuando el usuario pida "%s":
 				// Extraer el comando que acompaña a la wake word
 				partes := strings.SplitN(textoLower, triggerDetected, 2)
 				if len(partes) > 1 {
-					cmdLimpio = cleanCommand(partes[1])
+					cmdLimpio = intent.CleanCommand(partes[1])
 				}
 
 				if cmdLimpio == "" {
@@ -522,46 +524,4 @@ func listMcpTools(ctx context.Context, mcpManager *mcp.ServerManager) {
 			}
 		}
 	}
-}
-
-// cleanCommand limpia puntuación y remueve letras remanentes (como 'o' en 'Ronaldo') para extraer el comando de voz limpio.
-func cleanCommand(cmd string) string {
-	cmd = strings.TrimSpace(cmd)
-	// Remover signos de puntuación iniciales/finales
-	cmd = strings.TrimFunc(cmd, func(r rune) bool {
-		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
-	})
-	cmd = strings.TrimSpace(cmd)
-
-	// Manejar el caso de "Ronaldo" cuando la wake word es "ronald"
-	// Si el comando restante empieza con "o " o "o," o es exactamente "o"
-	if cmd == "o" {
-		cmd = ""
-	} else if strings.HasPrefix(cmd, "o ") {
-		cmd = strings.TrimPrefix(cmd, "o ")
-	} else if strings.HasPrefix(cmd, "o,") {
-		cmd = strings.TrimPrefix(cmd, "o,")
-	}
-
-	// Limpiar puntuación residual de nuevo
-	cmd = strings.TrimFunc(cmd, func(r rune) bool {
-		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
-	})
-	return strings.TrimSpace(cmd)
-}
-
-// isWhisperHallucination detecta y descarta alucinaciones típicas de Whisper.
-func isWhisperHallucination(text string) bool {
-	t := strings.ToLower(strings.Trim(text, " .,?!¡¿"))
-	if t == "" || t == "blank_audio" || t == "gracias" || t == "gracias por ver" ||
-		t == "subtítulos" || t == "subtítulos por" || t == "subtitles" || t == "subtitles by" ||
-		t == "thank you" || t == "thank you for watching" || t == "amara" || t == "amara.org" ||
-		t == "y" || t == "sí" || t == "si" || t == "hola" || t == "adiós" || t == "bye" {
-		return true
-	}
-	// Si contiene frases específicas de subtítulos de Whisper
-	if strings.Contains(t, "subtítulos por") || strings.Contains(t, "subtitles by") || strings.Contains(t, "amara.org") {
-		return true
-	}
-	return false
 }

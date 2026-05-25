@@ -205,7 +205,12 @@ Aquí se escribe el prompt de sistema específico que se le inyectará a Ollama 
 
 - **`name`**: Identificador único de la habilidad (ej. `youtube-music`).
 - **`description`**: Descripción concisa. RBot la utiliza junto al motor de indexación FTS5 de SQLite para realizar búsquedas semánticas y activar la habilidad correspondiente si no coincide ningún trigger exacto.
-- **`risk_level`**: Nivel de riesgo (`low`, `medium`, `high`). Si es `high`, RBot le pedirá confirmación explícita al usuario por voz o consola antes de realizar acciones mecánicas o comandos de sistema destructivos.
+- **`version`**: Versión actual de la habilidad.
+- **`author`**: Autor o creador.
+- **`risk_level`**: Nivel de riesgo (`low`, `medium`, `high`). Si es `high`, el módulo `policy` pedirá confirmación explícita al usuario interactiva antes de realizar comandos de sistema destructivos.
+- **`priority`**: (Nuevo) Nivel de prioridad (ej. 100). Habilidades con mayor prioridad prevalecen en caso de conflicto.
+- **`category`**: (Nuevo) Clasificación de la habilidad (ej. `media`, `system`, `development`).
+- **`exclusive`**: (Nuevo) Booleano `true`/`false`. Si es `true`, al activarse esta habilidad, suprime la carga de otras habilidades conflictivas de menor prioridad.
 - **`voice_triggers`**: Lista de cadenas exactas o subfrases que activan de inmediato esta habilidad. Si el comando del usuario contiene alguna de estas frases, RBot activa la habilidad sin necesidad de recurrir a consultas pesadas en la base de datos.
 - **`permissions`**: Lista de permisos requeridos (por ejemplo, permitir ejecutar ejecutables del sistema mediante `exec:<binario>`). El orquestador de RBot valida estos permisos frente a su módulo de seguridad antes de despachar tareas al LLM.
 

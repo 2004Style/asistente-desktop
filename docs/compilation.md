@@ -146,7 +146,7 @@ go build -o bin/rbot cmd/main.go
    ```
    * RBot validará las dependencias y mostrará su estado.
    * Si compilaste Whisper con CUDA, verás un log que indica el uso de GPU.
-   * RBot hablará indicando *"Sistema inicializado. Estoy listo."* y esperará a que digas la palabra clave (ej. *"oye ronald"* o *"ronald"*).
+   * RBot hablará indicando *"Entorno preparado, señor. Estoy atento a sus instrucciones."* y esperará a que digas la palabra clave (ej. *"oye ronald"* o *"ronald"*).
 
 3. **Ejecutar en modo texto rápido (Chat CLI):**
    ```bash

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"rbot/internal/db"
+	"rbot/internal/intent"
 	"rbot/internal/mcp"
 	"strings"
 	"testing"
@@ -25,9 +26,9 @@ func TestCleanCommand(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		res := cleanCommand(tt.input)
+		res := intent.CleanCommand(tt.input)
 		if res != tt.expected {
-			t.Errorf("cleanCommand(%q) = %q; expected %q", tt.input, res, tt.expected)
+			t.Errorf("intent.CleanCommand(%q) = %q; expected %q", tt.input, res, tt.expected)
 		}
 	}
 }
@@ -46,9 +47,9 @@ func TestIsWhisperHallucination(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		res := isWhisperHallucination(tt.input)
+		res := intent.IsWhisperHallucination(tt.input)
 		if res != tt.expected {
-			t.Errorf("isWhisperHallucination(%q) = %t; expected %t", tt.input, res, tt.expected)
+			t.Errorf("intent.IsWhisperHallucination(%q) = %t; expected %t", tt.input, res, tt.expected)
 		}
 	}
 }

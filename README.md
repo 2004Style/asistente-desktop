@@ -12,7 +12,8 @@
 - **Cliente MCP stdio JSON-RPC 2.0:** Inicializa y enruta peticiones de forma **asíncrona y en segundo plano** a servidores MCP externos (por ejemplo, `server-filesystem`) para evitar retrasos de arranque.
 - **Motor de Habilidades (`SKILL.md`):** Parser nativo de Markdown y frontmatter YAML para indexar procedimientos y auditorías de seguridad antes de ejecutar comandos.
 - **Seguridad por Capas:** Control de rutas prohibidas (ej. carpetas `.ssh` o archivos `.env`) y confirmación interactiva para herramientas de alto riesgo antes de su ejecución.
-- **Confirmación Rápida de Acciones Directas:** Salta llamadas innecesarias al LLM para confirmar de inmediato (latencia < 1ms) la ejecución de acciones mecánicas como abrir/cerrar apps (`"ejecuta vscode"`) o cargar URLs, generando las respuestas conversacionales localmente en español.
+- **Motor de Personalidad y Estados:** Adiós a las respuestas robóticas. RBot se comporta como un operador de escritorio Linux elegante, sereno, técnico y discreto, ajustando su tono (observación, ejecución, advertencia) mediante una máquina de estados dinámica.
+- **Confirmación Rápida de Acciones Directas:** Salta llamadas innecesarias al LLM para confirmar de inmediato la ejecución de acciones mecánicas como abrir/cerrar apps (`"ejecuta vscode"`) o cargar URLs, utilizando el motor de personalidad para generar las respuestas.
 - **Auto-Carga e Indexación Asíncrona:** Descubre y habilita automáticamente habilidades en el inicio, y realiza el primer escaneo de archivos y aplicaciones de escritorio en segundo plano si la base de datos local está vacía.
 - **Ciclo de Voz de Alto Rendimiento:** Utiliza binarios de C++ altamente optimizados (`piper` para TTS y `whisper.cpp` para STT) controlados directamente por Go, eliminando la sobrecarga y latencia de Python.
 
@@ -27,7 +28,21 @@ asistente/ (Directorio Raíz)
 │
 ├── internal/
 │   ├── agent/
-│   │   └── orchestrator.go   # Ensamblador de contexto, prompt y control de ejecución
+│   │   └── orchestrator.go   # Orquestador principal (Pipeline: Normalizer -> Router -> Planner -> Executor)
+│   ├── browser/
+│   │   └── session.go        # Gestión de navegador y limpieza de URLs coloquiales
+│   ├── executor/
+│   │   └── registry.go       # Registro de herramientas, contextos de timeout y ejecución
+│   ├── intent/
+│   │   └── intent.go         # Evaluación y scoring de intención del usuario (Directo vs Delegado)
+│   ├── planner/
+│   │   └── plan.go           # Generación de planes de ejecución secuenciales para tool-calls
+│   ├── personality/
+│   │   └── personality.go    # Máquina de estados para respuestas elegantes y no robóticas
+│   ├── policy/
+│   │   └── confirmation.go   # Políticas de confirmación interactiva para herramientas de alto riesgo
+│   ├── system/
+│   │   └── tools.go          # Herramientas del sistema y ejecución de shell segura
 │   ├── db/
 │   │   └── sqlite.go         # Conexión SQLite, migraciones FTS5 y expansor de rutas
 │   ├── ollama/
@@ -142,7 +157,7 @@ Para poner a RBot en modo de espera silencioso de nuevo, puedes pronunciar frase
 - _"Vete a dormir"_ o _"Duérmete"_
 - _"Apágate"_, _"Desactívate"_ o _"Nada más"_
 
-RBot responderá _"Entendido señor, vuelvo al modo de espera"_ y volverá a estar dormido esperando únicamente por una palabra de activación.
+RBot responderá confirmando de manera breve (ej. _"Hecho. Todo quedó en orden."_) y volverá a estar dormido esperando únicamente por una palabra de activación.
 _Nota: Si no dices nada durante 3 minutos, RBot se dormirá automáticamente por inactividad para no capturar conversaciones accidentales._
 
 ---
@@ -162,9 +177,16 @@ go test -count=1 -v ./...
 La suite cubre:
 
 - `rbot/cmd` (main): Limpieza de comandos de voz y alucinaciones de Whisper.
-- `internal/agent`: Prompt de sistema dinámico y flujo completo de razonamiento LLM + tool calling con Ollama mockeado.
+- `internal/agent`: Orquestación mediante el patrón Pipeline.
+- `internal/browser`: Resolución y limpieza de URLs coloquiales y gestión del navegador.
 - `internal/config`: Carga, validación y resolución de rutas dinámicas.
 - `internal/db`: Conexiones SQLite, esquemas e índice virtual FTS5.
+- `internal/executor`: Registro de herramientas y validación de timeouts.
+- `internal/intent`: Scoring de intenciones para rutas directas vs delegadas al LLM.
+- `internal/personality`: Generación dinámica de respuestas basadas en máquina de estados y riesgo.
+- `internal/planner`: Generación secuencial de planes y tool-calls.
+- `internal/policy`: Políticas de seguridad y tiempos de expiración para confirmaciones.
+- `internal/system`: Control seguro de shell (Bash) e inyección de comandos del sistema.
 - `internal/security`: Validaciones de criticidad y paths denegados.
 - `internal/files`: Indexación incremental recursiva, búsqueda inteligente y alias.
 - `internal/voice`: Conversión de audio, VAD en Go y diálogo fallback.
@@ -177,6 +199,7 @@ El archivo de configuración YAML te permite parametrizar el comportamiento:
 
 - `agent.name`: Nombre con el que te responde el agente (ej. `RBot`).
 - `agent.wake_words`: Lista de frases que lo despiertan (ej: `["oye ronald", "ey ronald", "rbot"]`).
+- `personality.role` / `style`: Configura cómo se comporta RBot (por defecto actúa como un operador de escritorio elegante, técnico y discreto).
 - `model.model`: Modelo cargado en Ollama.
 - `files.allowed_roots`: Carpetas seguras donde RBot tiene permitido buscar y resumir archivos.
 - `security.blocked_paths`: Directorios privados donde RBot tiene estrictamente prohibido ingresar (bloquea por defecto carpetas `.ssh`, claves privadas y ficheros `.env`).
