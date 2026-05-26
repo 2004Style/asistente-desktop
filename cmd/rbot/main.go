@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"flag"
 	"rbot/internal/agent"
 	"rbot/internal/apps"
 	"rbot/internal/config"
@@ -40,7 +41,28 @@ func main() {
 	if len(os.Args) > 1 {
 		cmd := strings.ToLower(os.Args[1])
 		if cmd == "setup" || cmd == "onboard" {
-			if err := onboarding.Run(context.Background(), onboarding.Options{ConfigPath: configPath, In: os.Stdin, Out: os.Stdout}); err != nil {
+			// parse flags for non-interactive setup
+			fs := flag.NewFlagSet(cmd, flag.ExitOnError)
+			provider := fs.String("provider", "", "Provider name: ollama|openai|compatible or custom key")
+			model := fs.String("model", "", "Model id to set")
+			baseURL := fs.String("base-url", "", "Base URL for provider (for compatible/openai)")
+			secretRef := fs.String("secret-ref", "", "Secret reference, e.g. env:OPENAI_API_KEY")
+			nonInteractive := fs.Bool("yes", false, "Non-interactive: accept defaults or provided flags")
+			// parse only args after the command
+			_ = fs.Parse(os.Args[2:])
+
+			opts := onboarding.Options{
+				ConfigPath:     configPath,
+				In:             os.Stdin,
+				Out:            os.Stdout,
+				NonInteractive: *nonInteractive || *provider != "" || *model != "" || *baseURL != "" || *secretRef != "",
+				Provider:       *provider,
+				Model:          *model,
+				BaseURL:        *baseURL,
+				SecretRef:      *secretRef,
+			}
+
+			if err := onboarding.Run(context.Background(), opts); err != nil {
 				log.Fatalf("Error durante onboarding: %v", err)
 			}
 			return

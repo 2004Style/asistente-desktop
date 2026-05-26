@@ -16,6 +16,9 @@ type Manager struct {
 func NewManager() *Manager {
 	m := &Manager{resolvers: map[string]Resolver{}}
 	m.Register("env", EnvResolver{})
+	// Register keyring resolver if available
+	m.Register("keyring", KeyringResolver{})
+	m.Register("kr", KeyringResolver{})
 	return m
 }
 
