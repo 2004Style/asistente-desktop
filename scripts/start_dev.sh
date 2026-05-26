@@ -12,8 +12,8 @@ echo "2) Building binaries (rbot, rbotd, rbotctl)..."
 mkdir -p bin
 
 go build -o bin/rbot ./cmd/rbot
-	go build -o bin/rbotd ./cmd/rbotd || true
-	go build -o bin/rbotctl ./cmd/rbotctl || true
+go build -o bin/rbotd ./cmd/rbotd || true
+go build -o bin/rbotctl ./cmd/rbotctl || true
 
 echo "3) Ensure config exists (dev)"
 if [ ! -f config/rbot.yaml ]; then

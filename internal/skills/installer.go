@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type Installer struct {
@@ -123,20 +124,45 @@ func (inst *Installer) InstallZip(zipPath string) (*SkillMetadata, error) {
 		return nil, fmt.Errorf("la skill en staging no es válida: %w", err)
 	}
 
-	// 4. Mover de staging a la carpeta de destino final
+	// 4. Preparar destino final y cuarentena si existe previa instalación
 	finalDestDir := filepath.Join(inst.skillsDir, meta.Name)
-	_ = os.RemoveAll(finalDestDir) // Limpiar previo si existe
+	quarantineDir := filepath.Join(inst.skillsDir, "quarantine")
+	if err := os.MkdirAll(quarantineDir, 0755); err != nil {
+		return nil, fmt.Errorf("error al crear directorio de cuarentena: %w", err)
+	}
 
+	// Si existe instalación previa, moverla a cuarentena con timestamp
+	if _, err := os.Stat(finalDestDir); err == nil {
+		ts := time.Now().Format("20060102-150405")
+		moveTo := filepath.Join(quarantineDir, fmt.Sprintf("%s-%s", meta.Name, ts))
+		if err := os.Rename(finalDestDir, moveTo); err != nil {
+			// Si Rename falla (diferentes FS), intentar copia y eliminación
+			if err := copyDirectory(finalDestDir, moveTo); err != nil {
+				return nil, fmt.Errorf("error al mover instalación previa a cuarentena: %w", err)
+			}
+			_ = os.RemoveAll(finalDestDir)
+		}
+	}
+
+	// Crear directorio final e instalar desde staging
 	if err := os.MkdirAll(finalDestDir, 0755); err != nil {
 		return nil, fmt.Errorf("error al crear directorio de destino para la skill: %w", err)
 	}
 
-	// Copiar archivos de staging a la ruta final
 	if err := copyDirectory(stagingDir, finalDestDir); err != nil {
 		return nil, fmt.Errorf("error al mover skill al directorio final: %w", err)
 	}
 
-	// Establecer hash final calculado y estado inicial disabled
+	// Calcular hash final y guardar en metadata (y opcionalmente persistir)
+	hash, err := CalculateDirHash(finalDestDir)
+	if err == nil {
+		// write .skill_hash file
+		_ = os.WriteFile(filepath.Join(finalDestDir, ".skill_hash"), []byte(hash), 0644)
+		// set metadata if possible
+		// metaHash field not present in struct; but manager stores hash via CalculateDirHash during scan
+	}
+
+	// Establecer estado inicial disabled
 	meta.Status = "disabled"
 
 	return meta, nil
