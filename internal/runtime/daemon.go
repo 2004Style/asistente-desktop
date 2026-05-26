@@ -110,6 +110,7 @@ func NewDaemon(conf *config.Config, database *sql.DB) *Daemon {
 
 	nm := notifications.NewNotificationManager(database, &DaemonEventPublisher{Bus: eb}, conf)
 	polEngine := policy.NewEngine(conf.Security.BlockedPaths, true)
+	polEngine.SetDB(database)
 	sched := scheduler.NewScheduler(database, conf, nm, orchestrator.Executor, polEngine)
 
 	d := &Daemon{

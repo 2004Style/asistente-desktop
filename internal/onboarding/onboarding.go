@@ -13,11 +13,17 @@ import (
 )
 
 type Options struct {
-	ConfigPath string
-	In         io.Reader
-	Out        io.Writer
+	ConfigPath     string
+	In             io.Reader
+	Out            io.Writer
+	NonInteractive bool
+	Provider       string
+	Model          string
+	BaseURL        string
+	SecretRef      string
 }
 
+// Run executes onboarding. If NonInteractive is true, Provider/Model/BaseURL/SecretRef are used.
 func Run(ctx context.Context, opts Options) error {
 	_ = ctx
 	if opts.In == nil {
@@ -45,7 +51,7 @@ func Run(ctx context.Context, opts Options) error {
 	fmt.Fprintf(opts.Out, "Config: %s\n", opts.ConfigPath)
 	fmt.Fprintf(opts.Out, "Providers: %s\n\n", providersPath)
 
-	choice := prompt(opts.Out, reader, "Proveedor [1=ollama, 2=openai, 3=compatible] (default 1): ")
+	// defaults
 	selectedKey := "ollama"
 	selectedType := "ollama"
 	selectedModel := "qwen2.5:7b"
@@ -53,27 +59,71 @@ func Run(ctx context.Context, opts Options) error {
 	selectedSecretRef := ""
 	selectedAuth := "none"
 
-	switch strings.TrimSpace(choice) {
-	case "2", "openai":
-		selectedKey = "openai"
-		selectedType = "openai"
-		selectedModel = promptDefault(opts.Out, reader, "Modelo OpenAI (default gpt-4o-mini): ", "gpt-4o-mini")
-		selectedBaseURL = promptDefault(opts.Out, reader, "Base URL OpenAI (default https://api.openai.com): ", "https://api.openai.com")
-		selectedSecretRef = promptDefault(opts.Out, reader, "Referencia de secreto env (default env:OPENAI_API_KEY): ", "env:OPENAI_API_KEY")
-		selectedAuth = "api_key"
-	case "3", "compatible":
-		selectedKey = promptDefault(opts.Out, reader, "Nombre del proveedor compatible (default compatible-local): ", "compatible-local")
-		selectedType = "compatible"
-		selectedBaseURL = promptRequired(opts.Out, reader, "Base URL compatible: ")
-		selectedModel = promptRequired(opts.Out, reader, "Modelo compatible: ")
-		selectedSecretRef = promptDefault(opts.Out, reader, "Referencia de secreto env (default env:COMPATIBLE_API_KEY): ", "env:COMPATIBLE_API_KEY")
-		selectedAuth = "api_key"
-	default:
-		selectedKey = "ollama"
-		selectedType = "ollama"
-		selectedModel = promptDefault(opts.Out, reader, "Modelo Ollama (default qwen2.5:7b): ", "qwen2.5:7b")
-		selectedBaseURL = promptDefault(opts.Out, reader, "Base URL Ollama (default http://localhost:11434): ", "http://localhost:11434")
-		selectedAuth = "none"
+	if opts.NonInteractive {
+		p := strings.ToLower(strings.TrimSpace(opts.Provider))
+		switch p {
+		case "openai":
+			selectedKey = "openai"
+			selectedType = "openai"
+			if opts.Model != "" {
+				selectedModel = opts.Model
+			} else {
+				selectedModel = "gpt-4o-mini"
+			}
+			if opts.BaseURL != "" {
+				selectedBaseURL = opts.BaseURL
+			} else {
+				selectedBaseURL = "https://api.openai.com"
+			}
+			selectedSecretRef = opts.SecretRef
+			selectedAuth = "api_key"
+		case "compatible":
+			if opts.Provider != "" {
+				selectedKey = opts.Provider
+			} else {
+				selectedKey = "compatible-local"
+			}
+			selectedType = "compatible"
+			if opts.Model != "" {
+				selectedModel = opts.Model
+			}
+			if opts.BaseURL != "" {
+				selectedBaseURL = opts.BaseURL
+			}
+			selectedSecretRef = opts.SecretRef
+			selectedAuth = "api_key"
+		default:
+			if opts.Model != "" {
+				selectedModel = opts.Model
+			}
+			if opts.BaseURL != "" {
+				selectedBaseURL = opts.BaseURL
+			}
+		}
+	} else {
+		choice := prompt(opts.Out, reader, "Proveedor [1=ollama, 2=openai, 3=compatible] (default 1): ")
+		switch strings.TrimSpace(choice) {
+		case "2", "openai":
+			selectedKey = "openai"
+			selectedType = "openai"
+			selectedModel = promptDefault(opts.Out, reader, "Modelo OpenAI (default gpt-4o-mini): ", "gpt-4o-mini")
+			selectedBaseURL = promptDefault(opts.Out, reader, "Base URL OpenAI (default https://api.openai.com): ", "https://api.openai.com")
+			selectedSecretRef = promptDefault(opts.Out, reader, "Referencia de secreto env (default env:OPENAI_API_KEY): ", "env:OPENAI_API_KEY")
+			selectedAuth = "api_key"
+		case "3", "compatible":
+			selectedKey = promptDefault(opts.Out, reader, "Nombre del proveedor compatible (default compatible-local): ", "compatible-local")
+			selectedType = "compatible"
+			selectedBaseURL = promptRequired(opts.Out, reader, "Base URL compatible: ")
+			selectedModel = promptRequired(opts.Out, reader, "Modelo compatible: ")
+			selectedSecretRef = promptDefault(opts.Out, reader, "Referencia de secreto env (default env:COMPATIBLE_API_KEY): ", "env:COMPATIBLE_API_KEY")
+			selectedAuth = "api_key"
+		default:
+			selectedKey = "ollama"
+			selectedType = "ollama"
+			selectedModel = promptDefault(opts.Out, reader, "Modelo Ollama (default qwen2.5:7b): ", "qwen2.5:7b")
+			selectedBaseURL = promptDefault(opts.Out, reader, "Base URL Ollama (default http://localhost:11434): ", "http://localhost:11434")
+			selectedAuth = "none"
+		}
 	}
 
 	providersConf.ActiveProvider = selectedKey

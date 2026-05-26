@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
+	"rbot/internal/config"
 	"rbot/internal/executor"
 	"rbot/internal/files"
-	"rbot/internal/config"
 	"rbot/internal/intent"
 	"rbot/internal/llm"
 	"rbot/internal/mcp"
@@ -26,7 +26,6 @@ import (
 	"rbot/internal/policy"
 	"rbot/internal/security"
 	"rbot/internal/skills"
-	"rbot/internal/workspace"
 	browserTools "rbot/internal/tools/browser"
 	desktopTools "rbot/internal/tools/desktop"
 	filesTools "rbot/internal/tools/files"
@@ -38,6 +37,7 @@ import (
 	remindersTools "rbot/internal/tools/reminders"
 	systemTools "rbot/internal/tools/system"
 	tasksTools "rbot/internal/tools/tasks"
+	"rbot/internal/workspace"
 )
 
 type DirectAction struct {
@@ -66,6 +66,7 @@ func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerMa
 
 	reg := executor.NewRegistry()
 	pol := policy.NewEngine(blockedPaths, true)
+	pol.SetDB(db)
 	execObj := executor.NewExecutor(reg, pol, nil, db)
 
 	// Registrar herramientas internas
@@ -97,7 +98,6 @@ func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerMa
 		Executor:     execObj,
 	}
 }
-
 
 func (o *Orchestrator) SetEventPublisher(ep executor.EventPublisher) {
 	if o.Executor != nil {
@@ -333,18 +333,28 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			toolName := action.ToolName
 			args := action.Args
 
-			// Validar seguridad
-			var targetPath string
-			if p, ok := args["path"].(string); ok {
-				targetPath = p
+			// Validate security using unified Policy path
+			// Resolve tool handler
+			toolHandler, ok := o.Registry.Get(toolName)
+			if !ok {
+				resultStr := fmt.Sprintf("Error: herramienta no registrada: %s", toolName)
+				execErr := fmt.Errorf("herramienta no registrada: %s", toolName)
+				// Log as denied for safety
+				_, _ = o.DB.Exec(`INSERT INTO action_log (user_input, tool_name, tool_source, arguments_json, result_json, success, error, required_confirmation, confirmed_by_user, duration_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`, userInput, toolName, "internal", "{}", resultStr, 0, execErr.Error(), 0, 0, 0)
+				return fmt.Sprintf("%s", resultStr), nil
 			}
 
-			allowed, requiresConfirm, reason := security.ValidateToolAction(o.DB, toolName, targetPath, o.BlockedPaths)
+			decision := o.Executor.Policy.EvaluateTool(ctx, toolHandler, args)
+
+			// Extra check for shell critical commands: escalate to require confirmation
 			if toolName == "system.run_command" {
 				if cmdStr, ok := args["command"].(string); ok {
 					if security.IsCommandCritical(cmdStr) {
-						requiresConfirm = true
-						reason = fmt.Sprintf("el comando '%s' es crítico y requiere confirmación explícita", cmdStr)
+						decision.RequiresConfirm = true
+						if decision.Reason == "" {
+							decision.Reason = fmt.Sprintf("el comando '%s' es crítico y requiere confirmación explícita", cmdStr)
+						}
+						decision.RiskLevel = "high"
 					}
 				}
 			}
@@ -354,22 +364,22 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			var success int = 0
 			var confirmedByUser int = 0
 
-			if !allowed {
-				resultStr = fmt.Sprintf("Error: Acción denegada por seguridad. %s", reason)
-				execErr = fmt.Errorf("denegado: %s", reason)
+			if !decision.Allowed {
+				resultStr = fmt.Sprintf("Error: Acción denegada por seguridad. %s", decision.Reason)
+				execErr = fmt.Errorf("denegado: %s", decision.Reason)
 			} else {
-				if requiresConfirm {
+				if decision.RequiresConfirm {
 					confirmedByUser = 1
 					if o.IsVoiceMode {
 						if o.hasUserConfirmedConversational(history, userInput) {
 							resultStr, execErr = o.executeTool(ctx, toolName, args)
 						} else {
 							resultStr = fmt.Sprintf("Error: Confirmación conversacional requerida para '%s'.", toolName)
-							execErr = fmt.Errorf("confirmación conversacional requerida: %s", reason)
+							execErr = fmt.Errorf("confirmación conversacional requerida: %s", decision.Reason)
 							success = 0
 						}
 					} else {
-						if o.askConfirmationInteractive(toolName, fmt.Sprintf("%v", args), reason) {
+						if o.askConfirmationInteractive(toolName, fmt.Sprintf("%v", args), decision.Reason) {
 							resultStr, execErr = o.executeTool(ctx, toolName, args)
 						} else {
 							resultStr = "Error: Acción cancelada por el usuario."
@@ -400,7 +410,7 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			_, _ = o.DB.Exec(`
 				INSERT INTO action_log (user_input, tool_name, tool_source, arguments_json, result_json, success, error, required_confirmation, confirmed_by_user, duration_ms)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-			`, userInput, toolName, source, string(argsBytes), resultStr, success, fmt.Sprintf("%v", execErr), boolToInt(requiresConfirm), confirmedByUser, 0)
+			`, userInput, toolName, source, string(argsBytes), resultStr, success, fmt.Sprintf("%v", execErr), boolToInt(decision.RequiresConfirm), confirmedByUser, 0)
 
 			results = append(results, fmt.Sprintf("Acción %s: %s", toolName, resultStr))
 		}
@@ -414,8 +424,8 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 				state = personality.StateConfirming
 			}
 			confirmationText = personality.ComposeResponse(personality.ResponseContext{
-				State: state,
-				Error: lastErr,
+				State:     state,
+				Error:     lastErr,
 				AgentName: o.AgentName,
 			})
 			return confirmationText, nil
@@ -431,16 +441,16 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			}
 
 			confirmationText = personality.ComposeResponse(personality.ResponseContext{
-				State:    personality.StateDone,
-				Risk:     personality.RiskLow,
-				ToolName: act.ToolName,
-				Target:   target,
+				State:     personality.StateDone,
+				Risk:      personality.RiskLow,
+				ToolName:  act.ToolName,
+				Target:    target,
 				AgentName: o.AgentName,
 			})
 		} else {
 			confirmationText = personality.ComposeResponse(personality.ResponseContext{
-				State:    personality.StateDone,
-				Risk:     personality.RiskLow,
+				State:     personality.StateDone,
+				Risk:      personality.RiskLow,
 				AgentName: o.AgentName,
 			})
 		}

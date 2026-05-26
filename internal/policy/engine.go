@@ -2,6 +2,7 @@ package policy
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ type Engine struct {
 	BlockedPaths    []string
 	ConfirmHighRisk bool
 	localPolicy     *WorkspacePolicy
+	DB              *sql.DB
 }
 
 // NewEngine inicializa un nuevo motor de políticas.
@@ -26,6 +28,13 @@ func NewEngine(blockedPaths []string, confirmHighRisk bool) *Engine {
 		BlockedPaths:    blockedPaths,
 		ConfirmHighRisk: confirmHighRisk,
 	}
+}
+
+// SetDB asigna la DB para que el engine pueda consultar permisos de herramienta almacenados.
+func (e *Engine) SetDB(db *sql.DB) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.DB = db
 }
 
 // SetWorkspacePolicies actualiza las políticas de usuario del workspace.
@@ -62,6 +71,28 @@ func (e *Engine) EvaluateTool(ctx context.Context, tool executor.ToolHandler, ar
 					}
 				}
 			}
+		}
+	}
+
+	// 2b. Si hay una DB de herramientas, respetar la configuración almacenada en la BD
+	if e.DB != nil {
+		// intentar extraer una ruta objetivo si está en args
+		var targetPath string
+		for _, v := range args {
+			if p, ok := v.(string); ok {
+				// heurística: si contiene '/' o '~' o '.' tratar como path
+				if strings.HasPrefix(p, "/") || strings.HasPrefix(p, "~") || strings.Contains(p, ".") {
+					targetPath = p
+					break
+				}
+			}
+		}
+		allowedDB, reqConfirmDB, reasonDB := security.ValidateToolAction(e.DB, toolName, targetPath, e.BlockedPaths)
+		if !allowedDB {
+			return executor.PolicyDecision{Allowed: false, RiskLevel: "critical", Reason: reasonDB}
+		}
+		if reqConfirmDB {
+			return executor.PolicyDecision{Allowed: true, RequiresConfirm: true, RiskLevel: riskLevel, Reason: reasonDB}
 		}
 	}
 
@@ -137,4 +168,3 @@ func (e *Engine) EvaluateTool(ctx context.Context, tool executor.ToolHandler, ar
 		}
 	}
 }
-
