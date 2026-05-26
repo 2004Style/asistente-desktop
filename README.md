@@ -88,6 +88,39 @@ Dónde están las cosas (mapa rápido)
 - config/rbot.yaml - config principal (dev: config/rbot.yaml)
 - config/providers.yaml - providers config (escrito por onboarding)
 
+Desktop GUI (Fyne)
+
+Se añadió una interfaz de escritorio mínima usando Fyne en `cmd/rbot-settings-ui` para configurar proveedor, modelo y secret-ref desde GUI.
+
+Requisitos (Linux):
+- Go >= 1.20
+- Dependencias del sistema para Fyne (puede variar según distro). En Debian/Ubuntu típicamente:
+  - libgl1-mesa-dev libglu1-mesa-dev xorg-dev libx11-dev
+  - On Debian/Ubuntu: `sudo apt install libgl1-mesa-dev xorg-dev libx11-dev`
+- Para keyring: el paquete `libsecret-1-dev` y configuración si querés usar keyring en Linux.
+
+Cómo ejecutar (dev):
+
+1) Iniciá el daemon en otra terminal (recomendado):
+
+```bash
+# desde el repo, o si ya compilaste:
+./bin/rbotd &
+```
+
+2) Ejecutá el GUI (binario preferido) o con go run:
+
+```bash
+# si compilaste:
+./bin/rbot-settings-ui
+# o en desarrollo:
+go run cmd/rbot-settings-ui
+```
+
+Smoke script
+
+Hay un script auxiliar `scripts/smoke_gui.sh` que intenta arrancar `rbotd` (si existe en ./bin) y lanzar la UI en foreground. Es útil para pruebas manuales en desktop.
+
 Contribuir
 
 - Hacé cambios en ramas pequeñas y PRs revisables. El repo está configurado para gate de tests.
