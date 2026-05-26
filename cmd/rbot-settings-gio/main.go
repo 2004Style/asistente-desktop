@@ -5,11 +5,13 @@ import (
 	"image"
 	"image/color"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -29,6 +31,7 @@ type uiState struct {
 	mu      sync.Mutex
 	status  string
 	busy    bool
+	phase   float64
 	errText string
 }
 
@@ -37,7 +40,7 @@ func main() {
 		var w app.Window
 		w.Option(
 			app.Title("RBot Settings"),
-			app.Size(unit.Dp(760), unit.Dp(480)),
+			app.Size(unit.Dp(780), unit.Dp(520)),
 			app.Decorated(true),
 		)
 		if err := loop(&w); err != nil {
@@ -89,6 +92,17 @@ func loop(w *app.Window) error {
 	}
 	sort.Strings(providerKeys)
 
+	go func() {
+		t := time.NewTicker(60 * time.Millisecond)
+		defer t.Stop()
+		for range t.C {
+			state.mu.Lock()
+			state.phase = math.Mod(state.phase+0.04, 1)
+			state.mu.Unlock()
+			w.Invalidate()
+		}
+	}()
+
 	for {
 		switch e := w.Event().(type) {
 		case app.DestroyEvent:
@@ -96,6 +110,7 @@ func loop(w *app.Window) error {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
 			paint.Fill(gtx.Ops, th.Palette.Bg)
+			phase := state.phaseValue()
 
 			if testBtn.Clicked(gtx) && !state.isBusy() {
 				state.setBusy(true)
@@ -149,19 +164,20 @@ func loop(w *app.Window) error {
 				card := clip.UniformRRect(cardRect, 18).Push(gtx.Ops)
 				paint.Fill(gtx.Ops, color.NRGBA{R: 0x0D, G: 0x13, B: 0x27, A: 0xFF})
 				card.Pop()
+				paint.FillShape(gtx.Ops, accentColor(phase), clip.UniformRRect(image.Rect(0, 0, cardRect.Dx(), 4), 2).Op(gtx.Ops))
 
 				return layout.Inset{Top: unit.Dp(16), Left: unit.Dp(18), Right: unit.Dp(18), Bottom: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return colorBlock(gtx, color.NRGBA{R: 0x00, G: 0xE5, B: 0xFF, A: 0xFF}, image.Pt(120, 6))
+									return colorBlock(gtx, accentColor(phase+0.00), image.Pt(128, 6))
 								}),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return colorBlock(gtx, color.NRGBA{R: 0xA6, G: 0x3D, B: 0xFF, A: 0xFF}, image.Pt(80, 6))
+									return colorBlock(gtx, accentColor(phase+0.33), image.Pt(84, 6))
 								}),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return colorBlock(gtx, color.NRGBA{R: 0x00, G: 0xFF, B: 0xA3, A: 0xFF}, image.Pt(60, 6))
+									return colorBlock(gtx, accentColor(phase+0.66), image.Pt(68, 6))
 								}),
 							)
 						}),
@@ -180,9 +196,7 @@ func loop(w *app.Window) error {
 									return material.Caption(th, "Selected provider: "+strings.TrimSpace(providerEditor.Text())).Layout(gtx)
 								}),
 								layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
-								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return material.Caption(th, state.snapshot()).Layout(gtx)
-								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Caption(th, state.snapshot()).Layout(gtx) }),
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
@@ -212,6 +226,10 @@ func loop(w *app.Window) error {
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Body2(th, state.snapshot()).Layout(gtx) }),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return neonStatCard(gtx, th, "Mode", "Local-first", accentColor(phase+0.12))
+						}),
 					)
 				})
 			})
@@ -225,6 +243,22 @@ func colorBlock(gtx layout.Context, c color.NRGBA, size image.Point) layout.Dime
 	shape := clip.UniformRRect(image.Rectangle{Max: size}, 3).Op(gtx.Ops)
 	paint.FillShape(gtx.Ops, c, shape)
 	return layout.Dimensions{Size: size}
+}
+
+func neonStatCard(gtx layout.Context, th *material.Theme, title, value string, accent color.NRGBA) layout.Dimensions {
+	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+	// Keep the card compact by constraining its drawn height.
+	cardRect.Max.Y = 56
+	stack := clip.UniformRRect(cardRect, 12).Push(gtx.Ops)
+	paint.Fill(gtx.Ops, color.NRGBA{R: 0x11, G: 0x17, B: 0x2B, A: 0xFF})
+	stack.Pop()
+	paint.FillShape(gtx.Ops, accent, clip.UniformRRect(image.Rect(0, 0, 4, 56), 2).Op(gtx.Ops))
+	return layout.Inset{Top: unit.Dp(12), Left: unit.Dp(16), Right: unit.Dp(16), Bottom: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Caption(th, title).Layout(gtx) }),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Body2(th, value).Layout(gtx) }),
+		)
+	})
 }
 
 func resolveConfigPath() string {
@@ -278,6 +312,14 @@ func resolveProvidersPath(configPath, providersPath string) string {
 	return filepath.Join(baseDir, filepath.Base(providersPath))
 }
 
+func accentColor(phase float64) color.NRGBA {
+	p := math.Mod(phase, 1)
+	r := uint8(20 + 60*math.Abs(math.Sin((p+0.0)*math.Pi*2)))
+	g := uint8(180 + 60*math.Abs(math.Sin((p+0.33)*math.Pi*2)))
+	b := uint8(200 + 40*math.Abs(math.Sin((p+0.66)*math.Pi*2)))
+	return color.NRGBA{R: r, G: g, B: b, A: 0xFF}
+}
+
 func (s *uiState) setStatus(v string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -302,6 +344,12 @@ func (s *uiState) isBusy() bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.busy
+}
+
+func (s *uiState) phaseValue() float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.phase
 }
 
 func (s *uiState) snapshot() string {
