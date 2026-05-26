@@ -37,7 +37,7 @@ func main() {
 		var w app.Window
 		w.Option(
 			app.Title("RBot Settings"),
-			app.Size(unit.Dp(720), unit.Dp(420)),
+			app.Size(unit.Dp(760), unit.Dp(480)),
 			app.Decorated(true),
 		)
 		if err := loop(&w); err != nil {
@@ -51,10 +51,11 @@ func main() {
 func loop(w *app.Window) error {
 	th := material.NewTheme()
 	th.Palette.Bg = color.NRGBA{R: 0x07, G: 0x0B, B: 0x16, A: 0xFF}
-	th.Palette.Fg = color.NRGBA{R: 0xD6, G: 0xE1, B: 0xFF, A: 0xFF}
+	th.Palette.Fg = color.NRGBA{R: 0xD8, G: 0xE2, B: 0xFF, A: 0xFF}
 	th.Palette.ContrastBg = color.NRGBA{R: 0x00, G: 0xE5, B: 0xFF, A: 0xFF}
 	th.Palette.ContrastFg = color.NRGBA{R: 0x03, G: 0x0B, B: 0x14, A: 0xFF}
 	th.TextSize = unit.Sp(16)
+
 	var ops op.Ops
 	state := &uiState{status: "Ready"}
 
@@ -63,7 +64,6 @@ func loop(w *app.Window) error {
 	var secretEditor widget.Editor
 	var testBtn widget.Clickable
 	var applyBtn widget.Clickable
-
 	providerEditor.SingleLine = true
 	modelEditor.SingleLine = true
 	secretEditor.SingleLine = true
@@ -74,19 +74,20 @@ func loop(w *app.Window) error {
 		state.setError(fmt.Sprintf("config load failed: %v", err))
 	}
 	providersConf, _ := config.LoadProvidersConfig(resolveProvidersPath(configPath, conf.Providers.ConfigFile))
-	providerClicks := map[string]*widget.Clickable{}
+
+	providerEditor.SetText(conf.Providers.ActiveProvider)
+	modelEditor.SetText(conf.Providers.ActiveModel)
+	if p, ok := providersConf.Providers[conf.Providers.ActiveProvider]; ok && p.SecretRef != "" {
+		secretEditor.SetText(p.SecretRef)
+	}
+
 	providerKeys := make([]string, 0, len(providersConf.Providers))
+	providerClicks := make(map[string]*widget.Clickable, len(providersConf.Providers))
 	for name := range providersConf.Providers {
 		providerKeys = append(providerKeys, name)
 		providerClicks[name] = new(widget.Clickable)
 	}
 	sort.Strings(providerKeys)
-
-	providerEditor.SetText(conf.Providers.ActiveProvider)
-	modelEditor.SetText(conf.Providers.ActiveModel)
-	if p, ok := providersConf.Providers[conf.Providers.ActiveProvider]; ok {
-		secretEditor.SetText(p.SecretRef)
-	}
 
 	for {
 		switch e := w.Event().(type) {
@@ -94,9 +95,7 @@ func loop(w *app.Window) error {
 			return e.Err
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
-			bg := clip.Rect{Max: gtx.Constraints.Max}.Push(gtx.Ops)
 			paint.Fill(gtx.Ops, th.Palette.Bg)
-			bg.Pop()
 
 			if testBtn.Clicked(gtx) && !state.isBusy() {
 				state.setBusy(true)
@@ -146,18 +145,47 @@ func loop(w *app.Window) error {
 			}
 
 			layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				card := clip.UniformRRect(image.Rectangle{Max: gtx.Constraints.Max}, 18).Push(gtx.Ops)
+				cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+				card := clip.UniformRRect(cardRect, 18).Push(gtx.Ops)
 				paint.Fill(gtx.Ops, color.NRGBA{R: 0x0D, G: 0x13, B: 0x27, A: 0xFF})
 				card.Pop()
-				return layout.Inset{Top: unit.Dp(18), Left: unit.Dp(18), Right: unit.Dp(18), Bottom: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+
+				return layout.Inset{Top: unit.Dp(16), Left: unit.Dp(18), Right: unit.Dp(18), Bottom: unit.Dp(18)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return material.H4(th, "RBot Settings").Layout(gtx)
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return colorBlock(gtx, color.NRGBA{R: 0x00, G: 0xE5, B: 0xFF, A: 0xFF}, image.Pt(120, 6))
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return colorBlock(gtx, color.NRGBA{R: 0xA6, G: 0x3D, B: 0xFF, A: 0xFF}, image.Pt(80, 6))
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return colorBlock(gtx, color.NRGBA{R: 0x00, G: 0xFF, B: 0xA3, A: 0xFF}, image.Pt(60, 6))
+								}),
+							)
 						}),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return material.Overline(th, "NEURAL CONTROL / DESKTOP SESSION").Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.H4(th, "RBot Settings").Layout(gtx) }),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.Body1(th, "Neon control deck for local provider switching").Layout(gtx)
 						}),
-						layout.Rigid(layout.Spacer{Height: unit.Dp(14)}.Layout),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return material.Caption(th, "Selected provider: "+strings.TrimSpace(providerEditor.Text())).Layout(gtx)
+								}),
+								layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return material.Caption(th, state.snapshot()).Layout(gtx)
+								}),
+							)
+						}),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.Overline(th, "Quick providers").Layout(gtx)
 						}),
@@ -183,9 +211,7 @@ func loop(w *app.Window) error {
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return material.Body2(th, state.snapshot()).Layout(gtx)
-						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Body2(th, state.snapshot()).Layout(gtx) }),
 					)
 				})
 			})
@@ -193,6 +219,12 @@ func loop(w *app.Window) error {
 			e.Frame(gtx.Ops)
 		}
 	}
+}
+
+func colorBlock(gtx layout.Context, c color.NRGBA, size image.Point) layout.Dimensions {
+	shape := clip.UniformRRect(image.Rectangle{Max: size}, 3).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, c, shape)
+	return layout.Dimensions{Size: size}
 }
 
 func resolveConfigPath() string {
@@ -206,11 +238,16 @@ func resolveConfigPath() string {
 
 func providerButtonRow(gtx layout.Context, th *material.Theme, keys []string, clicks map[string]*widget.Clickable, providerEditor, modelEditor, secretEditor *widget.Editor, providersConf *config.ProvidersConfig) []layout.FlexChild {
 	children := make([]layout.FlexChild, 0, len(keys)*2)
+	selected := strings.TrimSpace(providerEditor.Text())
 	for i, name := range keys {
 		if i > 0 {
 			children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout))
 		}
 		name := name
+		label := fmt.Sprintf("○ %s", name)
+		if selected == name {
+			label = fmt.Sprintf("◉ %s", name)
+		}
 		click := clicks[name]
 		children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if click.Clicked(gtx) {
@@ -224,7 +261,6 @@ func providerButtonRow(gtx layout.Context, th *material.Theme, keys []string, cl
 					}
 				}
 			}
-			label := fmt.Sprintf("● %s", name)
 			return material.Button(th, click, label).Layout(gtx)
 		}))
 	}
