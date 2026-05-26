@@ -1,0 +1,4 @@
+{
+  "signature": "internal/secrets/manager.go::Unresolved from this turn — internal/secrets/manager.go:\n🔴 STOP — 1 issue(s) must be fixed:\n  L18: undefined: EnvResolver\n    💡 Fix: LSP quick fixes: Create variable EnvResolver",
+  "sessionId": "lens-mpmdf385-755b202e"
+}

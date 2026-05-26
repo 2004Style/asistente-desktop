@@ -1,62 +1,223 @@
 agent:
-    name: RBot
-    language: es
-    local_first: true
-    voice_enabled: true
-    wake_words:
-        - oye ronald
-        - ey ronald
-        - go ronald
-        - hola ronald
-        - ronald
-        - rbot
+  name: RBot
+  language: es
+  local_first: true
+  voice_enabled: true
+  wake_words:
+    - oye ronald
+    - ey ronald
+    - go ronald
+    - hola ronald
+    - ronald
+    - rbot
+
+runtime:
+  socket_path: ~/.local/share/rbot/rbot.sock
+  event_socket_path: ~/.local/share/rbot/events.sock
+  log_level: info
+
+personality:
+  role: operador personal de escritorio Linux
+  style: "mayordomo tecnológico elegante: sereno, preciso, discreto, técnico y confiable"
+  humor: true
+
 model:
-    provider: ollama
-    base_url: http://localhost:11434
-    model: qwen2.5:7b
-    temperature: 0.2
-    tool_calling: true
+  provider: ollama
+  base_url: http://localhost:11434
+  model: qwen2.5:7b
+  temperature: 0.2
+  tool_calling: true
+
+providers:
+  config_file: config/providers.yaml
+  active_provider: ollama
+  active_model: qwen2.5:7b
+
 database:
-    provider: sqlite
-    path: ~/.local/share/rbot/rbot.db
-    enable_fts: true
-    auto_migrate: true
+  provider: sqlite
+  path: ~/.local/share/rbot/rbot.db
+  enable_fts: true
+  auto_migrate: true
+
 skills:
-    path: ~/.local/share/rbot/skills
-    format: SKILL.md
-    auto_discover: true
-    remote_install_enabled: true
+  path: ~/.local/share/rbot/skills
+  workspace_skills_path: ~/.local/share/rbot/workspace/skills
+  format: SKILL.md
+  auto_discover: true
+  auto_enable_low_risk: false
+  auto_enable_high_risk: false
+  remote_install_enabled: false
+  validate_on_startup: true
+  quarantine_on_failures: true
+  max_failures_before_quarantine: 3
+
 mcp:
-    enabled: true
-    config_path: mcp/mcp_config.json
+  enabled: true
+  config_path: mcp/mcp_config.json
+
 files:
-    allowed_roots:
-        - .
-        - ~/Documentos
-        - ~/Descargas
-        - ~/Escritorio
-    ignore:
-        - node_modules
-        - .git
-        - .next
-        - bin
-        - build
-        - venv
-        - __pycache__
-        - .cache
-        - .local/share/Trash
-        - snap
-    max_depth: 6
+  allowed_roots:
+    - .
+    - ~/Documentos
+    - ~/Descargas
+    - ~/Escritorio
+  ignore:
+    - node_modules
+    - .git
+    - .next
+    - bin
+    - build
+    - venv
+    - __pycache__
+    - .cache
+    - .local/share/Trash
+    - snap
+  max_depth: 6
+
 security:
-    confirm_high_risk: true
-    blocked_paths:
-        - ~/.ssh
-        - ~/.gnupg
-        - ~/.local/share/keyrings
-        - '**/.env'
+  confirm_high_risk: true
+  blocked_paths:
+    - ~/.ssh
+    - ~/.gnupg
+    - ~/.aws
+    - ~/.config/rclone
+    - ~/.config/gh
+    - ~/.docker/config.json
+    - ~/.local/share/keyrings
+    - "**/.env"
+    - "**/.env.*"
+    - "**/id_rsa"
+    - "**/id_ed25519"
+    - "**/*.pem"
+    - "**/*.key"
+    - "**/*.p12"
+    - "**/cookies.sqlite"
+    - "**/Cookies"
+    - "**/Login Data"
+
 voice:
-    piper_model: voices/es_ES-davefx-medium.onnx
-    whisper_model: models/ggml-tiny.bin
-    vad_threshold: 550.0
-    whisper_threads: 8
-    whisper_flags: ""
+  piper_model: voices/es_ES-davefx-medium.onnx
+  whisper_model: models/ggml-tiny.bin
+  vad_threshold: 550.0
+  whisper_threads: 8
+  whisper_flags: ""
+
+desktop:
+  backend: auto
+  enable_hyprland: true
+  enable_sway: true
+  enable_x11: true
+  allow_window_close: true
+  require_confirm_close_window: true
+
+input:
+  enabled: true
+  backend: auto
+  allow_keyboard: true
+  allow_mouse: true
+  require_confirm_text_input: false
+  require_confirm_hotkeys: false
+  block_password_typing: true
+  max_text_length_medium: 200
+  max_text_length_high: 1000
+
+browser:
+  default: auto
+  reuse_tabs: true
+  youtube_reuse_existing: true
+
+media:
+  prefer_playerctl: true
+  default_music_query: lofi hip hop beats
+
+scheduler:
+  enabled: true
+  tick_seconds: 15
+  run_missed_jobs_on_startup: true
+  max_late_minutes: 120
+
+tasks:
+  default_priority: normal
+  notify_due_tasks: true
+
+reminders:
+  default_channels:
+    - desktop
+    - voice
+    - hud
+  allow_recurring: true
+  default_time: "09:00"
+
+meetings:
+  default_notify_before_minutes: 10
+  notify_today_summary: true
+
+notifications:
+  desktop: true
+  voice: true
+  hud: true
+  sound: true
+  quiet_hours:
+    enabled: true
+    start: "23:00"
+    end: "07:00"
+    mute_voice: true
+    mute_sound: true
+    allow_desktop: true
+    allow_hud: true
+
+time:
+  timezone: America/Lima
+  store_as_utc: true
+
+hud:
+  enabled: true
+  backend: gio
+  event_socket_path: ~/.local/share/rbot/events.sock
+  window:
+    width: 520
+    height: 420
+    position: center
+    transparent: true
+    borderless: true
+    always_on_top: true
+    no_focus: true
+    click_through: true
+    opacity: 0.94
+  behavior:
+    show_on_wake: true
+    hide_on_sleep: true
+    hide_delay_ms: 1200
+    reconnect: true
+    reconnect_initial_ms: 500
+    reconnect_max_ms: 10000
+  visual:
+    theme: cyber-blue
+    show_transcription: true
+    show_tool_status: true
+    show_notifications: true
+    max_notification_seconds: 8
+    audio_smoothing: 0.75
+  hyprland:
+    class_name: rbot-hud
+    print_rules_hint: true
+
+workspace:
+  enabled: true
+  path: ~/.local/share/rbot/workspace
+  auto_create: true
+  watch_changes: true
+  reload_debounce_ms: 500
+  include_files:
+    - AGENTS.md
+    - IDENTITY.md
+    - TOOLS.md
+    - POLICIES.md
+    - MEMORY.md
+    - TASKS.md
+    - SHORTCUTS.md
+
+policies:
+  editable: true
+  allow_workspace_policies: true
+  immutable_critical_rules: true

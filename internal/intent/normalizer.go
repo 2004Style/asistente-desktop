@@ -4,17 +4,78 @@ import (
 	"strings"
 )
 
+// Normalize limpia y estandariza la entrada del usuario eliminando wake words y corrigiendo errores ortográficos.
+func Normalize(input string, wakeWords []string) string {
+	inputLower := strings.ToLower(strings.TrimSpace(input))
+
+	// 1. Remover wake words si existen al inicio
+	for _, ww := range wakeWords {
+		wwLower := strings.ToLower(ww)
+		if wwLower != "" && (strings.HasPrefix(inputLower, wwLower+" ") || inputLower == wwLower) {
+			inputLower = strings.TrimPrefix(inputLower, wwLower)
+			inputLower = strings.TrimSpace(inputLower)
+			break
+		}
+	}
+
+	// 2. Corregir puntuación residual
+	inputLower = strings.TrimFunc(inputLower, func(r rune) bool {
+		return r == ',' || r == '.' || r == '!' || r == '?' || r == '¿' || r == '¡' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
+	})
+	inputLower = strings.TrimSpace(inputLower)
+
+	// Manejar el caso de "Ronaldo" si la wake word era "ronald"
+	if inputLower == "o" {
+		inputLower = ""
+	} else if strings.HasPrefix(inputLower, "o ") {
+		inputLower = strings.TrimPrefix(inputLower, "o ")
+	} else if strings.HasPrefix(inputLower, "o,") {
+		inputLower = strings.TrimPrefix(inputLower, "o,")
+	}
+
+	// 3. Normalizaciones fonéticas/ Whisper / Sinónimos
+	inputLower = " " + inputLower + " "
+
+	replacements := map[string]string{
+		"yutub":         "youtube",
+		"yutú":          "youtube",
+		"bisual":        "vscode",
+		"gugol":         "google",
+		"gugel":         "google",
+		"convertsistem": "convertsystems",
+		"doker":         "docker",
+		"karpeta":       "carpeta",
+		"prueva":        "prueba",
+		"arxivo":        "archivo",
+		"sirra":         "cierra",
+		"sierra":        "cierra",
+		"habre":         "abre",
+		"habré":         "abre",
+		"bray":          "brave",
+		"colcame":       "colócame",
+		"preciona":      "presiona",
+		"ele":           "l",
+	}
+
+	for k, v := range replacements {
+		inputLower = strings.ReplaceAll(inputLower, " "+k+" ", " "+v+" ")
+		inputLower = strings.ReplaceAll(inputLower, " "+k+",", " "+v+",")
+		inputLower = strings.ReplaceAll(inputLower, " "+k+".", " "+v+".")
+		inputLower = strings.ReplaceAll(inputLower, " "+k+"?", " "+v+"?")
+		inputLower = strings.ReplaceAll(inputLower, " "+k+"!", " "+v+"!")
+	}
+
+	return strings.TrimSpace(inputLower)
+}
+
 // CleanCommand limpia puntuación y remueve letras remanentes (como 'o' en 'Ronaldo') para extraer el comando de voz limpio.
 func CleanCommand(cmd string) string {
 	cmd = strings.TrimSpace(cmd)
-	// Remover signos de puntuación iniciales/finales
 	cmd = strings.TrimFunc(cmd, func(r rune) bool {
 		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
 	})
 	cmd = strings.TrimSpace(cmd)
 
-	// Manejar el caso de "Ronaldo" cuando la wake word es "ronald"
-	// Si el comando restante empieza con "o " o "o," o es exactamente "o"
 	if cmd == "o" {
 		cmd = ""
 	} else if strings.HasPrefix(cmd, "o ") {
@@ -23,7 +84,6 @@ func CleanCommand(cmd string) string {
 		cmd = strings.TrimPrefix(cmd, "o,")
 	}
 
-	// Limpiar puntuación residual de nuevo
 	cmd = strings.TrimFunc(cmd, func(r rune) bool {
 		return r == ',' || r == '.' || r == '!' || r == '?' || r == ';' || r == ':' || r == '-' || r == ')' || r == '(' || r == '\'' || r == '"'
 	})
@@ -39,53 +99,8 @@ func IsWhisperHallucination(text string) bool {
 		t == "y" || t == "sí" || t == "si" || t == "hola" || t == "adiós" || t == "bye" {
 		return true
 	}
-	// Si contiene frases específicas de subtítulos de Whisper
 	if strings.Contains(t, "subtítulos por") || strings.Contains(t, "subtitles by") || strings.Contains(t, "amara.org") {
 		return true
 	}
 	return false
-}
-
-// SplitMultiIntent separa una oración del usuario en intenciones múltiples solo si se detectan verbos de acción.
-func SplitMultiIntent(input string) []string {
-	// Lista de verbos de acción fuertes para dividir tareas.
-	// Se buscarán conector + verbo, ej: " y abre", " luego busca"
-	actionVerbs := []string{
-		"abre", "cierra", "busca", "lee", "crea", "elimina", "pon", "reproduce", "copia", "mueve", "ejecuta", "compila",
-	}
-
-	var parts []string
-	inputLower := strings.ToLower(input)
-
-	// Un separador simple que busca ", [verbo]" o " y [verbo]" o " luego [verbo]"
-	connectors := []string{", ", " y ", " luego ", " después "}
-
-	lastCut := 0
-	for i := 0; i < len(inputLower); i++ {
-		// Intentar buscar conectores
-		for _, conn := range connectors {
-			if strings.HasPrefix(inputLower[i:], conn) {
-				// Revisar si justo después del conector viene un verbo de acción
-				afterConnIdx := i + len(conn)
-				for _, verb := range actionVerbs {
-					if strings.HasPrefix(inputLower[afterConnIdx:], verb+" ") || inputLower[afterConnIdx:] == verb {
-						// Separar
-						parts = append(parts, strings.TrimSpace(input[lastCut:i]))
-						lastCut = afterConnIdx // el inicio del nuevo comando es el verbo
-						i = afterConnIdx - 1
-						break
-					}
-				}
-			}
-		}
-	}
-
-	if lastCut < len(input) {
-		parts = append(parts, strings.TrimSpace(input[lastCut:]))
-	}
-
-	if len(parts) == 0 {
-		return []string{input}
-	}
-	return parts
 }

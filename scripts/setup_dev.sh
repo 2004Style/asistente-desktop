@@ -93,16 +93,19 @@ echo -e "${GREEN}✓ Symlink de Skills creado.${NC}"
 echo -e "${GREEN}✓ Symlink de Modelos creado (Piper -> voices, Whisper -> models).${NC}"
 echo -e "${GREEN}✓ Symlink de MCP creado.${NC}"
 
-# 6. Compilar binario de desarrollo
-echo -e "\n${YELLOW}[5/5] Compilando el binario local para pruebas...${NC}"
+# 6. Compilar binarios de desarrollo
+echo -e "\n${YELLOW}[5/5] Compilando los binarios locales para pruebas...${NC}"
 mkdir -p bin
-go build -o bin/rbot cmd/main.go
-echo -e "${GREEN}¡Binario compilado con éxito en 'bin/rbot'!${NC}"
+go build -o bin/rbot cmd/rbot/main.go
+go build -o bin/rbotd cmd/rbotd/main.go
+go build -o bin/rbotctl cmd/rbotctl/main.go
+echo -e "${GREEN}¡Binarios compilados con éxito en 'bin/'! (rbot, rbotd, rbotctl)${NC}"
 
 echo -e "\n${BLUE}====================================================${NC}"
 echo -e "${GREEN} ¡Entorno de desarrollo configurado con éxito!      ${NC}"
 echo -e "${BLUE}====================================================${NC}"
-echo -e "Puedes probar tu código local compilado usando:"
-echo -e "  ${YELLOW}./bin/rbot voice${NC}"
-echo -e "o ejecutándolo directamente sin compilar:"
-echo -e "  ${YELLOW}go run cmd/main.go voice${NC}"
+echo -e "Puedes arrancar el daemon en segundo plano:"
+echo -e "  ${YELLOW}./bin/rbotd &${NC}"
+echo -e "Y controlarlo usando el cliente:"
+echo -e "  ${YELLOW}./bin/rbotctl status${NC}"
+echo -e "  ${YELLOW}./bin/rbotctl say \"Hola Ronald\"${NC}"

@@ -1,5 +1,4 @@
 # Binarios
-rbot
 bin/
 bin/
 
@@ -30,3 +29,5 @@ venv/
 report-test.txt
 pruebas.md
 release/
+# Local Pi runtime state
+.atl/

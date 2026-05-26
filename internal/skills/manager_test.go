@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	rbotdb "rbot/internal/db"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -74,36 +76,9 @@ Apaga el sistema.
 	}
 	defer db.Close()
 
-	_, err = db.Exec(`
-		CREATE TABLE skills (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT UNIQUE,
-			description TEXT,
-			version TEXT,
-			path TEXT,
-			skill_md_path TEXT,
-			frontmatter_json TEXT,
-			permissions_json TEXT,
-			risk_level TEXT,
-			priority INTEGER DEFAULT 0,
-			category TEXT,
-			exclusive INTEGER DEFAULT 0,
-			enabled INTEGER DEFAULT 0,
-			trusted INTEGER DEFAULT 0,
-			created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-			updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-		);
-		CREATE TABLE search_index (
-			rowid INTEGER PRIMARY KEY AUTOINCREMENT,
-			entity_type TEXT,
-			entity_id INTEGER,
-			title TEXT,
-			body TEXT,
-			path TEXT
-		);
-	`)
-	if err != nil {
-		t.Fatalf("Failed to create mock tables: %v", err)
+	// Usar migraciones oficiales
+	if err := rbotdb.RunMigrations(db); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
 	}
 
 	// 3. Test ScanSkills

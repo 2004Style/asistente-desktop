@@ -38,10 +38,12 @@ for ARCH in "${ARCHITECTURES[@]}"; do
     mkdir -p "${TARGET_DIR}/share/rbot"
     mkdir -p "${TARGET_DIR}/config/rbot"
 
-    # Compilar el binario
-    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/${APP_NAME}" cmd/main.go
+    # Compilar los binarios
+    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbot" cmd/rbot/main.go
+    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbotd" cmd/rbotd/main.go
+    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbotctl" cmd/rbotctl/main.go
     
-    echo -e "${GREEN}Binario compilado exitosamente.${NC}"
+    echo -e "${GREEN}Binarios compilados exitosamente (rbot, rbotd, rbotctl).${NC}"
 
     echo -e "${YELLOW}[2/4] Copiando recursos del proyecto...${NC}"
     # Copiar skills

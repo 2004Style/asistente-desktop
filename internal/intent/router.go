@@ -3,28 +3,32 @@ package intent
 import (
 	"database/sql"
 	"sort"
-	"strings"
 
 	"rbot/internal/skills"
 )
 
-type IntentCandidate struct {
-	Intent     string
-	SkillName  string
-	Confidence float64
-	Reason     string
-	Slots      map[string]string
-	RiskLevel  string
-}
-
 type Router struct {
-	db *sql.DB
+	db         *sql.DB
+	ToolExists func(string) bool
+	WakeWords  []string
 }
 
 func NewRouter(db *sql.DB) *Router {
 	return &Router{
 		db: db,
+		WakeWords: []string{"oye ronaldo", "ey ronaldo", "go ronaldo", "hola ronaldo", "ronald", "rbot"},
 	}
+}
+
+// SetToolExists permite configurar una función callback para verificar si una herramienta existe
+// en el registro, evitando así dependencias circulares con el paquete executor.
+func (r *Router) SetToolExists(fn func(string) bool) {
+	r.ToolExists = fn
+}
+
+// SetWakeWords configura las wake words personalizadas.
+func (r *Router) SetWakeWords(ww []string) {
+	r.WakeWords = ww
 }
 
 // Match evalúa el input del usuario contra todas las habilidades habilitadas
@@ -32,63 +36,33 @@ func NewRouter(db *sql.DB) *Router {
 func (r *Router) Match(userInput string) []IntentCandidate {
 	var candidates []IntentCandidate
 
+	// 1. Normalizar el input (corregir errores fonéticos, wake words, etc.)
+	normalized := Normalize(userInput, r.WakeWords)
+
+	// 2. Obtener todas las habilidades habilitadas
 	allSkills, err := skills.GetAllEnabledSkills(r.db)
 	if err != nil || len(allSkills) == 0 {
 		return candidates
 	}
 
-	userInputLower := strings.ToLower(strings.TrimSpace(userInput))
-
 	for _, skill := range allSkills {
-		score := 0.0
-		reason := "No match"
+		// 3. Extraer slots
+		extractedSlots := ExtractSlots(skill.Name, normalized)
 
-		// 1. Evaluar Voice Triggers (Trigger exacto o parcial fuerte)
-		for _, trigger := range skill.VoiceTriggers {
-			triggerLower := strings.ToLower(trigger)
-			if triggerLower != "" && strings.Contains(userInputLower, triggerLower) {
-				score += 0.60
-				reason = "Match en voice trigger: " + trigger
-				break // Solo sumar una vez por voice triggers
-			}
-		}
+		// 4. Obtener slots requeridos/obligatorios
+		mandatory := skill.RequiredSlots[skill.Name]
 
-		// 2. Evaluar Negative Triggers (Penalización severa)
-		for _, negTrigger := range skill.NegativeTriggers {
-			negLower := strings.ToLower(negTrigger)
-			if negLower != "" && strings.Contains(userInputLower, negLower) {
-				score -= 0.50
-				reason += " | Penalizado por negative trigger: " + negTrigger
-			}
-		}
-
-		// 3. Evaluar verbos principales o palabras clave generales en el nombre/descripción
-		words := strings.Fields(userInputLower)
-		matchedWords := 0
-		for _, word := range words {
-			if len(word) > 3 {
-				if strings.Contains(strings.ToLower(skill.Name), word) {
-					matchedWords++
-				}
-				if strings.Contains(strings.ToLower(skill.Description), word) {
-					matchedWords++
-				}
-			}
-		}
-		if matchedWords > 0 {
-			score += float64(matchedWords) * 0.10
-			if score > 1.0 { // Cap score addition for words
-				score = 0.95
-			}
-		}
+		// 5. Calcular puntuación heurística
+		score, reason := CalculateScore(normalized, skill, r.ToolExists, mandatory, extractedSlots)
 
 		if score > 0 {
 			candidates = append(candidates, IntentCandidate{
-				Intent:     skill.Name, // TODO: Usar el intent específico de la skill si está definido
+				Intent:     skill.Name,
+				ToolName:   skill.Name,
 				SkillName:  skill.Name,
 				Confidence: score,
 				Reason:     reason,
-				Slots:      make(map[string]string),
+				Slots:      extractedSlots,
 				RiskLevel:  skill.RiskLevel,
 			})
 		}

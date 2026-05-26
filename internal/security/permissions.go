@@ -13,7 +13,7 @@ func IsPathBlocked(path string, blockedPaths []string) bool {
 	if path == "" {
 		return false
 	}
-	
+
 	// Expandir tildes de home si aplica
 	cleanPath := filepath.Clean(path)
 	if strings.HasPrefix(cleanPath, "~") {
@@ -36,10 +36,14 @@ func IsPathBlocked(path string, blockedPaths []string) bool {
 			return true
 		}
 
-		// Soporte básico de wildcards de extensión (ej: **/.env o **/.env.local)
+		// Soporte de wildcards para patrones sensibles (ej: **/.env.*, **/*.pem).
 		if strings.HasPrefix(blocked, "**/") {
-			suffix := strings.TrimPrefix(blocked, "**/")
-			if strings.HasSuffix(cleanPath, suffix) || filepath.Base(cleanPath) == suffix {
+			pattern := strings.TrimPrefix(blocked, "**/")
+			base := filepath.Base(cleanPath)
+			if matched, _ := filepath.Match(pattern, base); matched {
+				return true
+			}
+			if !strings.Contains(pattern, "*") && (strings.HasSuffix(cleanPath, pattern) || base == pattern) {
 				return true
 			}
 		}

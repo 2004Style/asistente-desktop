@@ -68,8 +68,10 @@ mkdir -p "$BIN_DIR" "$DATA_DIR/models/piper" "$DATA_DIR/models/whisper" "$CONFIG
 echo "${YELLOW}Descomprimiendo artefacto...${NC}"
 tar -xzf "$TMP_DIR/$ARCHIVE" -C "$TMP_DIR"
 
-# Instalar binario
-install -m 755 "$TMP_DIR/${APP_NAME}-${OS}-${ARCH}/bin/$APP_NAME" "$BIN_DIR/$APP_NAME"
+# Instalar binarios
+install -m 755 "$TMP_DIR/${APP_NAME}-${OS}-${ARCH}/bin/rbot" "$BIN_DIR/rbot"
+install -m 755 "$TMP_DIR/${APP_NAME}-${OS}-${ARCH}/bin/rbotd" "$BIN_DIR/rbotd"
+install -m 755 "$TMP_DIR/${APP_NAME}-${OS}-${ARCH}/bin/rbotctl" "$BIN_DIR/rbotctl"
 
 # Copiar recursos (skills)
 if [ -d "$TMP_DIR/${APP_NAME}-${OS}-${ARCH}/share/rbot" ]; then
@@ -127,19 +129,23 @@ fi
 echo "${BLUE}====================================================${NC}"
 echo "${GREEN} ¡Instalación de RBot completada!                   ${NC}"
 echo "${BLUE}====================================================${NC}"
-echo "El binario fue instalado en: ${GREEN}$BIN_DIR/$APP_NAME${NC}"
+echo "Los binarios fueron instalados en: ${GREEN}$BIN_DIR${NC} (rbot, rbotd, rbotctl)"
 echo "Asegúrate de que $BIN_DIR esté en tu \$PATH."
 echo "Los recursos y modelos están en: ${GREEN}$DATA_DIR${NC}"
 echo "La configuración de MCP está en: ${GREEN}$CONFIG_DIR${NC}"
-
+ 
 if [ -n "$MISSING_DEPS" ]; then
     echo "\n${RED}Aviso:${NC} Parecen faltar algunas dependencias en tu sistema:${YELLOW}$MISSING_DEPS${NC}"
     echo "Instálalas (ej. apt install piper whisper sox) para que el modo de voz funcione correctamente."
 fi
-
-echo "\n${YELLOW}Para inicializar RBot y crear la configuración automática, ejecuta:${NC}"
-echo "  $APP_NAME"
+ 
+echo "\n${YELLOW}Para arrancar el daemon residente en segundo plano, ejecuta:${NC}"
+echo "  rbotd &"
 echo ""
-echo "Para arrancar en modo escucha continua:"
-echo "  $APP_NAME voice"
+echo "Para enviarle órdenes o consultar su estado, utiliza el controlador:"
+echo "  rbotctl status"
+echo "  rbotctl say \"Hola Ronald\""
+echo ""
+echo "Para tareas offline de mantenimiento (como indexación), usa:"
+echo "  rbot index apps"
 echo ""

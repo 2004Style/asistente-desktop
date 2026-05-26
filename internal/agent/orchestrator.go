@@ -9,22 +9,35 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	"rbot/internal/desktop"
+	"rbot/internal/executor"
 	"rbot/internal/files"
+	"rbot/internal/config"
 	"rbot/internal/intent"
+	"rbot/internal/llm"
 	"rbot/internal/mcp"
-	"rbot/internal/ollama"
 	"rbot/internal/personality"
+	"rbot/internal/planner"
+	"rbot/internal/policy"
 	"rbot/internal/security"
 	"rbot/internal/skills"
+	"rbot/internal/workspace"
+	browserTools "rbot/internal/tools/browser"
+	desktopTools "rbot/internal/tools/desktop"
+	filesTools "rbot/internal/tools/files"
+	inputTools "rbot/internal/tools/input"
+	mediaTools "rbot/internal/tools/media"
+	meetingsTools "rbot/internal/tools/meetings"
+	memoryTools "rbot/internal/tools/memory"
+	notificationsTools "rbot/internal/tools/notifications"
+	remindersTools "rbot/internal/tools/reminders"
+	systemTools "rbot/internal/tools/system"
+	tasksTools "rbot/internal/tools/tasks"
 )
 
 type DirectAction struct {
@@ -33,31 +46,67 @@ type DirectAction struct {
 }
 
 type Orchestrator struct {
-	DB           *sql.DB
-	Ollama       *ollama.Client
-	MCP          *mcp.ServerManager
-	BlockedPaths []string
-	AllowedRoots []string
-	AgentName    string
-	IsVoiceMode  bool
+	DB                  *sql.DB
+	LLM                 llm.Provider
+	MCP                 *mcp.ServerManager
+	BlockedPaths        []string
+	AllowedRoots        []string
+	AgentName           string
+	IsVoiceMode         bool
+	Registry            *executor.Registry
+	Executor            *executor.Executor
+	GetWorkspaceContext func() *workspace.WorkspaceContext
+	OnTextChunk         func(string) // Callback para streaming de texto
 }
 
-func NewOrchestrator(db *sql.DB, ollamaClient *ollama.Client, mcpManager *mcp.ServerManager, blockedPaths []string, allowedRoots []string, agentName string) *Orchestrator {
+func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerManager, blockedPaths []string, allowedRoots []string, agentName string, cfg *config.Config) *Orchestrator {
 	if agentName == "" {
 		agentName = "RBot"
 	}
+
+	reg := executor.NewRegistry()
+	pol := policy.NewEngine(blockedPaths, true)
+	execObj := executor.NewExecutor(reg, pol, nil, db)
+
+	// Registrar herramientas internas
+	_ = desktopTools.RegisterTools(reg, db, allowedRoots, blockedPaths)
+	_ = browserTools.RegisterTools(reg)
+	_ = filesTools.RegisterTools(reg, db, allowedRoots, blockedPaths)
+	_ = systemTools.RegisterTools(reg)
+	_ = memoryTools.RegisterTools(reg, db)
+	_ = inputTools.RegisterTools(reg)
+	_ = mediaTools.RegisterTools(reg)
+
+	// Registrar herramientas de productividad si la configuración está disponible
+	if cfg != nil {
+		nm := notificationsTools.NewNotificationManager(db, nil, cfg)
+		_ = notificationsTools.RegisterTools(reg, nm)
+		_ = tasksTools.RegisterTools(reg, db, cfg)
+		_ = remindersTools.RegisterTools(reg, db, cfg)
+		_ = meetingsTools.RegisterTools(reg, db, cfg)
+	}
+
 	return &Orchestrator{
 		DB:           db,
-		Ollama:       ollamaClient,
+		LLM:          provider,
 		MCP:          mcpManager,
 		BlockedPaths: blockedPaths,
 		AllowedRoots: allowedRoots,
 		AgentName:    agentName,
+		Registry:     reg,
+		Executor:     execObj,
+	}
+}
+
+
+func (o *Orchestrator) SetEventPublisher(ep executor.EventPublisher) {
+	if o.Executor != nil {
+		o.Executor.Events = ep
 	}
 }
 
 // BuildSystemPrompt genera el prompt con memoria de usuario, habilidades/skills activas y metadatos del sistema en tiempo real
-func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
+func (o *Orchestrator) BuildSystemPrompt(skillContexts []string, userInput string) string {
 	var memoryParts []string
 	// Limitar a top 5 memorias recientes/relevantes
 	rows, err := o.DB.Query("SELECT category, key, value FROM user_memory ORDER BY updated_at DESC LIMIT 5")
@@ -99,6 +148,15 @@ func (o *Orchestrator) BuildSystemPrompt(skillContexts []string) string {
 	skillsSection := ""
 	if len(skillContexts) > 0 {
 		skillsSection = fmt.Sprintf("\n[HABILIDADES / SKILLS RELEVANTES]\nSigue fielmente las siguientes instrucciones para procesar la orden:\n%s\n", strings.Join(skillContexts, "\n"))
+	}
+
+	workspaceSnippet := ""
+	if o.GetWorkspaceContext != nil {
+		wCtx := o.GetWorkspaceContext()
+		if wCtx != nil {
+			cb := workspace.NewContextBuilder()
+			workspaceSnippet = cb.Build(userInput, wCtx)
+		}
 	}
 
 	return fmt.Sprintf(`Eres el asistente personal de escritorio de %s. Operas en Linux y ayudas a controlar aplicaciones, ventanas, workspaces, navegador, música, archivos, terminal, procesos, servicios, Docker, proyectos de desarrollo y búsquedas de información.
@@ -155,372 +213,25 @@ Evita:
 
 [DATOS RECORDADOS DEL USUARIO]
 %s
-`, "2004Style", skillsSection, currentTime, appsStr, memoryStr)
+
+[CONTEXTO DE WORKSPACE]
+%s
+`, "2004Style", skillsSection, currentTime, appsStr, memoryStr, workspaceSnippet)
 }
 
-// GetAvailableTools consolida herramientas internas y MCP en formato compatible con Ollama
-func (o *Orchestrator) GetAvailableTools(ctx context.Context) []ollama.Tool {
-	var list []ollama.Tool
+// GetAvailableTools consolida herramientas internas y MCP en formato compatible con LLM Tool Calling
+func (o *Orchestrator) GetAvailableTools(ctx context.Context) []llm.Tool {
+	// Asegurar que las herramientas MCP activas estén registradas
+	o.refreshMCPTools(ctx)
 
-	// 1. Herramientas internas
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "desktop.open_app",
-			Description: "Abre una aplicación o programa instalado en el escritorio del sistema (ej: firefox, brave, chrome, code, spotify, etc.).",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"app": map[string]interface{}{
-						"type":        "string",
-						"description": "Nombre del programa o aplicación a abrir.",
-					},
-				},
-				Required: []string{"app"},
-			},
-		},
-	})
+	// Obtener la definición compatible con LLM de todas las herramientas registradas
+	return o.Registry.GetLLMTools()
+}
 
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "desktop.close_app",
-			Description: "Cierra o termina una aplicación o programa en ejecución (ej: firefox, chrome, code, nautilus, spotify, etc.).",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"app": map[string]interface{}{
-						"type":        "string",
-						"description": "Nombre del programa o aplicación a cerrar.",
-					},
-				},
-				Required: []string{"app"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "browser.open_url",
-			Description: "Abre un sitio web en el navegador por defecto del sistema (ej: youtube.com, whatsapp.com, google.com).",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"url": map[string]interface{}{
-						"type":        "string",
-						"description": "Sitio web o dirección URL exacta a abrir. DEBE ser un dominio válido (ej: youtube.com) o URL completa (ej: https://github.com), NUNCA frases, espacios ni contexto natural.",
-					},
-				},
-				Required: []string{"url"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "browser.read_url",
-			Description: "Lee y extrae el contenido de texto de una página web o dirección URL para poder resumirla o responder preguntas sobre ella.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"url": map[string]interface{}{
-						"type":        "string",
-						"description": "La dirección URL del sitio web a leer.",
-					},
-				},
-				Required: []string{"url"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.search_index",
-			Description: "Busca la ruta física de un archivo o carpeta en el disco.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "Nombre del archivo o carpeta a buscar.",
-					},
-				},
-				Required: []string{"query"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.read_file",
-			Description: "Lee el contenido de un archivo de texto o lista los archivos de un directorio/carpeta del sistema.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta o nombre del archivo o carpeta a leer.",
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "memory.remember",
-			Description: "Guarda información sobre el usuario (preferencias, gustos, nombre) en la base de datos.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"key": map[string]interface{}{
-						"type":        "string",
-						"description": "Clave del dato a recordar.",
-					},
-					"value": map[string]interface{}{
-						"type":        "string",
-						"description": "Valor del dato.",
-					},
-					"category": map[string]interface{}{
-						"type":        "string",
-						"description": "Categoría del dato.",
-					},
-				},
-				Required: []string{"key", "value", "category"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "browser.search",
-			Description: "Realiza una búsqueda en internet en el navegador web por defecto del sistema.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "Texto o consulta a buscar en internet.",
-					},
-				},
-				Required: []string{"query"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "browser.youtube_search",
-			Description: "Busca videos en YouTube en el navegador web por defecto del sistema.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "Texto o consulta a buscar en YouTube.",
-					},
-				},
-				Required: []string{"query"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "browser.youtube_play",
-			Description: "Busca y reproduce un video o música en YouTube abriendo la página del video directamente en el navegador.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"query": map[string]interface{}{
-						"type":        "string",
-						"description": "Nombre de la canción, artista o video a reproducir en YouTube.",
-					},
-				},
-				Required: []string{"query"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "desktop.open_folder",
-			Description: "Abre una carpeta/directorio del sistema en Visual Studio Code o en el explorador de archivos Nautilus.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta de la carpeta (ej: Descargas, Documentos, o ruta absoluta) a abrir.",
-					},
-					"app": map[string]interface{}{
-						"type":        "string",
-						"description": "Aplicación con la que abrir la carpeta: 'vscode' (para Visual Studio Code) o 'nautilus' (para explorador de archivos).",
-						"enum":        []string{"vscode", "nautilus"},
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.create_file",
-			Description: "Crea un nuevo archivo de texto con el contenido especificado.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta relativa o absoluta del archivo a crear.",
-					},
-					"content": map[string]interface{}{
-						"type":        "string",
-						"description": "Contenido textual que se escribirá en el archivo.",
-					},
-				},
-				Required: []string{"path", "content"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.delete_file",
-			Description: "Elimina permanentemente un archivo o directorio especificado en el sistema.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta relativa o absoluta del archivo o directorio a eliminar.",
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.list_directory",
-			Description: "Lista el contenido detallado de un directorio.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta relativa o absoluta del directorio a listar.",
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "files.create_directory",
-			Description: "Crea una nueva carpeta o directorio en la ruta especificada.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Ruta del directorio a crear.",
-					},
-				},
-				Required: []string{"path"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "system.datetime",
-			Description: "Obtiene la fecha y hora actual en tiempo real.",
-			Parameters: ollama.Parameters{
-				Type:       "object",
-				Properties: map[string]interface{}{},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "system.clipboard_copy",
-			Description: "Copia un texto especificado al portapapeles del sistema.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"text": map[string]interface{}{
-						"type":        "string",
-						"description": "Texto a copiar al portapapeles.",
-					},
-				},
-				Required: []string{"text"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "system.notify",
-			Description: "Envía una notificación visual de escritorio.",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"title": map[string]interface{}{
-						"type":        "string",
-						"description": "Título de la notificación.",
-					},
-					"message": map[string]interface{}{
-						"type":        "string",
-						"description": "Mensaje de la notificación.",
-					},
-				},
-				Required: []string{"title", "message"},
-			},
-		},
-	})
-
-	list = append(list, ollama.Tool{
-		Type: "function",
-		Function: ollama.FunctionDefinition{
-			Name:        "system.run_command",
-			Description: "Ejecuta un comando en la terminal de Linux y retorna el resultado (salida estándar).",
-			Parameters: ollama.Parameters{
-				Type: "object",
-				Properties: map[string]interface{}{
-					"command": map[string]interface{}{
-						"type":        "string",
-						"description": "Comando bash a ejecutar.",
-					},
-				},
-				Required: []string{"command"},
-			},
-		},
-	})
-
-	// 2. Herramientas MCP
+func (o *Orchestrator) refreshMCPTools(ctx context.Context) {
+	if o.MCP == nil {
+		return
+	}
 	o.MCP.Mu.Lock()
 	defer o.MCP.Mu.Unlock()
 	for serverName, client := range o.MCP.Clients {
@@ -532,46 +243,67 @@ func (o *Orchestrator) GetAvailableTools(ctx context.Context) []ollama.Tool {
 			log.Printf("[MCP] Error al listar herramientas para %s: %v", serverName, err)
 			continue
 		}
-
 		for _, t := range tools {
-			prefixedName := fmt.Sprintf("mcp__%s__%s", serverName, t.Name)
-			list = append(list, ollama.Tool{
-				Type: "function",
-				Function: ollama.FunctionDefinition{
-					Name:        prefixedName,
-					Description: fmt.Sprintf("[MCP %s] %s", serverName, t.Description),
-					Parameters: ollama.Parameters{
-						Type:       "object",
-						Properties: t.InputSchema["properties"].(map[string]interface{}),
-						Required:   interfaceSliceToStringSlice(t.InputSchema["required"]),
-					},
-				},
-			})
+			fullName := fmt.Sprintf("mcp__%s__%s", serverName, t.Name)
+			adapter := mcp.NewMCPToolAdapter(client, t, o.DB, fullName)
+			o.Registry.RegisterOrReplace(adapter)
 		}
 	}
-
-	return list
 }
 
-func interfaceSliceToStringSlice(i interface{}) []string {
-	if i == nil {
+func (o *Orchestrator) matchShortcut(userInput string) *workspace.Shortcut {
+	if o.GetWorkspaceContext == nil {
 		return nil
 	}
-	slice, ok := i.([]interface{})
-	if !ok {
+	wCtx := o.GetWorkspaceContext()
+	if wCtx == nil {
 		return nil
 	}
-	var res []string
-	for _, v := range slice {
-		if s, ok := v.(string); ok {
-			res = append(res, s)
+	inputLower := strings.ToLower(strings.TrimSpace(userInput))
+	for _, s := range wCtx.Shortcuts {
+		for _, trigger := range s.Triggers {
+			if strings.ToLower(strings.TrimSpace(trigger)) == inputLower {
+				return &s
+			}
 		}
 	}
-	return res
+	return nil
 }
 
 // Chat realiza un paso conversacional resolviendo llamadas a herramientas si Ollama las requiere.
-func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []ollama.Message) (string, error) {
+func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm.Message) (string, error) {
+	// Detectar si la entrada coincide con algún shortcut del workspace
+	if shortcut := o.matchShortcut(userInput); shortcut != nil {
+		log.Printf("[Orchestrator] Coincidencia con shortcut del workspace: '%s'. Ejecutando pasos...", shortcut.Name)
+		var steps []planner.PlanStep
+		for i, sStep := range shortcut.Steps {
+			steps = append(steps, planner.PlanStep{
+				ID:        fmt.Sprintf("step-%d", i+1),
+				ToolName:  sStep.Intent,
+				Args:      sStep.Args,
+				TimeoutMs: 20000,
+			})
+		}
+		plan := planner.Plan{
+			ID:           "plan-shortcut-" + time.Now().Format("20060102150405"),
+			UserInput:    userInput,
+			Intent:       "shortcut",
+			Confidence:   1.0,
+			RiskLevel:    "medium",
+			NeedsConfirm: false,
+			Steps:        steps,
+		}
+
+		res, err := o.Executor.ExecutePlan(ctx, plan)
+		if err != nil {
+			return fmt.Sprintf("Señor, ocurrió un error al iniciar la ejecución del atajo '%s': %v", shortcut.Name, err), nil
+		}
+		if !res.Success {
+			return fmt.Sprintf("Señor, falló la ejecución del atajo '%s': %s", shortcut.Name, res.Error), nil
+		}
+		return fmt.Sprintf("Entendido, señor. He completado con éxito todas las acciones del atajo '%s'.", shortcut.Name), nil
+	}
+
 	// Cargar skills activas que coincidan con la entrada del usuario mediante IntentRouter
 	router := intent.NewRouter(o.DB)
 	candidates := router.Match(userInput)
@@ -717,17 +449,17 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 	}
 
 	// Construir historial con el mensaje de sistema y el nuevo prompt
-	var messages []ollama.Message
-	messages = append(messages, ollama.Message{
+	var messages []llm.Message
+	messages = append(messages, llm.Message{
 		Role:    "system",
-		Content: o.BuildSystemPrompt(skillContexts),
+		Content: o.BuildSystemPrompt(skillContexts, userInput),
 	})
 
 	// Cargar historial previo
 	messages = append(messages, history...)
 
 	// Agregar entrada del usuario
-	messages = append(messages, ollama.Message{
+	messages = append(messages, llm.Message{
 		Role:    "user",
 		Content: userInput,
 	})
@@ -735,13 +467,17 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 	// Obtener herramientas
 	tools := o.GetAvailableTools(ctx)
 
-	log.Printf("[Orchestrator] Iniciando ciclo de llamadas a Ollama...")
+	log.Printf("[Orchestrator] Iniciando ciclo de llamadas a LLM (%s)...", o.LLM.Name())
 	start := time.Now()
+
+	chatOpts := llm.ChatOptions{
+		OnTextChunk: o.OnTextChunk,
+	}
 
 	maxSteps := 5
 	for step := 0; step < maxSteps; step++ {
-		log.Printf("[Orchestrator] Enviando chat a Ollama (Paso %d/%d)...", step+1, maxSteps)
-		respMessage, err := o.Ollama.Chat(messages, tools)
+		log.Printf("[Orchestrator] Enviando chat a %s (Paso %d/%d)...", o.LLM.Name(), step+1, maxSteps)
+		respMessage, err := o.LLM.Chat(ctx, messages, tools, chatOpts)
 		if err != nil {
 			return "", err
 		}
@@ -836,7 +572,7 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []oll
 		messages = append(messages, *respMessage)
 
 		// Añadir los resultados de las herramientas en un mensaje de usuario para la siguiente iteración
-		messages = append(messages, ollama.Message{
+		messages = append(messages, llm.Message{
 			Role:    "user",
 			Content: fmt.Sprintf("System notification: The tools were executed. Results:\n%s\nProcesa estos resultados y decide si debes llamar a otra herramienta o dar una respuesta conversacional final en español al usuario (tratándolo de 'señor' y de forma directa/corta).", resultSummary),
 		})
@@ -868,491 +604,48 @@ func (o *Orchestrator) askConfirmationInteractive(toolName, argsJSON, reason str
 
 func (o *Orchestrator) executeTool(ctx context.Context, toolName string, args map[string]interface{}) (string, error) {
 	if strings.HasPrefix(toolName, "mcp__") {
-		// Enrutar a MCP
-		partes := strings.SplitN(strings.TrimPrefix(toolName, "mcp__"), "__", 2)
-		if len(partes) < 2 {
-			return "", fmt.Errorf("nombre de herramienta MCP inválido: %s", toolName)
-		}
-		serverName := partes[0]
-		realToolName := partes[1]
-
-		o.MCP.Mu.Lock()
-		client, ok := o.MCP.Clients[serverName]
-		o.MCP.Mu.Unlock()
-
-		if !ok || !client.IsActive {
-			return "", fmt.Errorf("el servidor MCP '%s' no está activo", serverName)
-		}
-
-		return client.CallTool(ctx, realToolName, args)
+		o.refreshMCPTools(ctx)
 	}
 
-	// Herramientas internas
-	switch toolName {
-	case "desktop.open_app":
-		app, _ := args["app"].(string)
-		if app == "" {
-			return "", fmt.Errorf("argumento 'app' requerido")
-		}
-
-		appLower := strings.ToLower(strings.TrimSpace(app))
-
-		// Usar coincidencia inteligente para obtener el comando ejecutable real
-		var command string
-		if matchedApp, ok := o.findBestAppMatch(appLower); ok {
-			if matchedApp == "navegador" {
-				err := desktop.OpenURL("https://google.com")
-				if err != nil {
-					return "", err
-				}
-				return "Navegador predeterminado abierto.", nil
-			}
-
-			// Buscar el comando asociado en la base de datos
-			err := o.DB.QueryRow("SELECT command FROM app_launchers WHERE executable = ? OR name = ? LIMIT 1", matchedApp, matchedApp).Scan(&command)
-			if err != nil {
-				command = matchedApp
-			}
-			app = matchedApp
-		} else {
-			command = app
-		}
-
-		// Validar si el ejecutable del comando existe en el sistema
-		firstWord := strings.Fields(command)[0]
-		if _, err := exec.LookPath(firstWord); err != nil {
-			if info, statErr := os.Stat(firstWord); statErr != nil || info.IsDir() {
-				return "", fmt.Errorf("no se encontró la aplicación o programa '%s' en el sistema", app)
-			}
-		}
-
-		err := desktop.LaunchApplication(command)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Aplicación '%s' lanzada correctamente.", app), nil
-
-	case "desktop.close_app":
-		app, _ := args["app"].(string)
-		if app == "" {
-			return "", fmt.Errorf("argumento 'app' requerido")
-		}
-
-		appLower := strings.ToLower(strings.TrimSpace(app))
-		if appLower == "navegador" || appLower == "chrome" || appLower == "google-chrome" || appLower == "firefox" {
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:google-chrome").Run()
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:firefox").Run()
-			_ = exec.Command("pkill", "-x", "chrome").Run()
-			_ = exec.Command("pkill", "-x", "google-chrome").Run()
-			_ = exec.Command("pkill", "-x", "firefox").Run()
-			return "Navegador web cerrado.", nil
-		}
-
-		if appLower == "vscode" || appLower == "code" || appLower == "visual studio code" {
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:Code").Run()
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:code").Run()
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:code-oss").Run()
-			_ = exec.Command("pkill", "-x", "code").Run()
-			return "Visual Studio Code cerrado.", nil
-		}
-
-		if appLower == "nautilus" || appLower == "gestor de archivos" || appLower == "archivos" {
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:nautilus").Run()
-			_ = exec.Command("pkill", "-x", "nautilus").Run()
-			return "Gestor de archivos cerrado.", nil
-		}
-
-		if matchedApp, ok := o.findBestAppMatch(appLower); ok {
-			_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:"+matchedApp).Run()
-			_ = exec.Command("pkill", "-x", matchedApp).Run()
-			_ = exec.Command("pkill", "-f", matchedApp).Run()
-			return fmt.Sprintf("Aplicación '%s' cerrada.", matchedApp), nil
-		}
-
-		_ = exec.Command("hyprctl", "dispatch", "closewindow", "class:"+app).Run()
-		_ = exec.Command("pkill", "-x", app).Run()
-		return fmt.Sprintf("Aplicación '%s' cerrada.", app), nil
-
-	case "browser.search":
-		query, _ := args["query"].(string)
-		if query == "" {
-			return "", fmt.Errorf("argumento 'query' requerido")
-		}
-		targetURL := fmt.Sprintf("https://www.google.com/search?q=%s", url.QueryEscape(query))
-		err := desktop.OpenURL(targetURL)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Buscando '%s' en internet.", query), nil
-
-	case "browser.youtube_search":
-		query, _ := args["query"].(string)
-		if query == "" {
-			return "", fmt.Errorf("argumento 'query' requerido")
-		}
-		targetURL := fmt.Sprintf("https://www.youtube.com/results?search_query=%s", url.QueryEscape(query))
-		err := desktop.OpenURL(targetURL)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Buscando '%s' en YouTube.", query), nil
-
-	case "browser.youtube_play":
-		query, _ := args["query"].(string)
-		if query == "" {
-			return "", fmt.Errorf("argumento 'query' requerido")
-		}
-		targetURL := getFirstYouTubeVideo(query)
-		err := desktop.OpenURL(targetURL)
-		if err != nil {
-			return "", err
-		}
-		if strings.Contains(targetURL, "/watch?v=") {
-			return fmt.Sprintf("Reproduciendo '%s' en YouTube.", query), nil
-		}
-		return fmt.Sprintf("Abriendo búsqueda de '%s' en YouTube.", query), nil
-
-	case "desktop.open_folder":
-		path, _ := args["path"].(string)
-		app, _ := args["app"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, false)
-		if err != nil {
-			return "", err
-		}
-
-		appLower := strings.ToLower(strings.TrimSpace(app))
-		if appLower == "vscode" || appLower == "code" {
-			err = desktop.LaunchApplication("code " + resolvedPath)
-			if err != nil {
-				return "", err
-			}
-			return fmt.Sprintf("Carpeta '%s' abierta en VS Code.", resolvedPath), nil
-		}
-
-		err = desktop.LaunchApplication("nautilus " + resolvedPath)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Carpeta '%s' abierta en el explorador de archivos.", resolvedPath), nil
-
-	case "browser.open_url":
-		urlVal, ok := args["url"].(string)
-		if !ok {
-			return "", fmt.Errorf("argumento 'url' faltante o inválido para browser.open_url")
-		}
-		
-		// Limpiar URL si el LLM metió espacios o texto natural
-		if strings.Contains(urlVal, " ") {
-			// Intentar extraer solo la parte que parece un dominio/url (la primera palabra válida)
-			parts := strings.Split(urlVal, " ")
-			for _, p := range parts {
-				if strings.Contains(p, ".") || strings.HasPrefix(p, "http") {
-					urlVal = p
-					break
-				}
-			}
-			// Si todavía tiene espacios, tomar solo la primera palabra
-			if strings.Contains(urlVal, " ") {
-				urlVal = strings.Split(urlVal, " ")[0]
-			}
-		}
-
-		if !strings.HasPrefix(urlVal, "http://") && !strings.HasPrefix(urlVal, "https://") {
-			if strings.Contains(urlVal, "whatsapp") {
-				urlVal = "https://web.whatsapp.com"
-			} else {
-				urlVal = "https://" + urlVal
-			}
-		}
-
-		err := desktop.OpenURL(urlVal)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Navegador abierto en la URL: %s", urlVal), nil
-
-	case "browser.read_url":
-		targetURL, _ := args["url"].(string)
-		if targetURL == "" {
-			return "", fmt.Errorf("argumento 'url' requerido")
-		}
-
-		if !strings.HasPrefix(targetURL, "http://") && !strings.HasPrefix(targetURL, "https://") {
-			targetURL = "https://" + targetURL
-		}
-
-		req, err := http.NewRequestWithContext(ctx, "GET", targetURL, nil)
-		if err != nil {
-			return "", fmt.Errorf("error al crear petición: %v", err)
-		}
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-
-		client := &http.Client{Timeout: 10 * time.Second}
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", fmt.Errorf("error al conectar con la página web: %v", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("la página devolvió un código de estado error: %d", resp.StatusCode)
-		}
-
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return "", fmt.Errorf("error al leer contenido: %v", err)
-		}
-
-		htmlStr := string(bodyBytes)
-		reScript := regexp.MustCompile(`(?s)<script.*?>.*?</script>`)
-		htmlStr = reScript.ReplaceAllString(htmlStr, "")
-		reStyle := regexp.MustCompile(`(?s)<style.*?>.*?</style>`)
-		htmlStr = reStyle.ReplaceAllString(htmlStr, "")
-		reTags := regexp.MustCompile(`<.*?>`)
-		textStr := reTags.ReplaceAllString(htmlStr, " ")
-		reSpaces := regexp.MustCompile(`\s+`)
-		textStr = reSpaces.ReplaceAllString(textStr, " ")
-		textStr = strings.TrimSpace(textStr)
-		if len(textStr) > 4000 {
-			textStr = textStr[:4000] + "... [Contenido truncado]"
-		}
-
-		if textStr == "" {
-			return "No se pudo extraer texto legible de la página.", nil
-		}
-		return textStr, nil
-
-	case "files.search_index":
-		query, _ := args["query"].(string)
-		if query == "" {
-			return "", fmt.Errorf("argumento 'query' requerido")
-		}
-
-		path, err := files.FindFileOrDirectory(o.DB, query, o.AllowedRoots, o.BlockedPaths)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("Encontrado en: %s", path), nil
-
-	case "files.read_file":
-		path, _ := args["path"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, false)
-		if err != nil {
-			return "", err
-		}
-		path = resolvedPath
-
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", err
-		}
-
-		// Si es un directorio, en lugar de error listamos su contenido para que Ollama haga un resumen
-		if info.IsDir() {
-			entries, err := os.ReadDir(path)
-			if err != nil {
-				return "", fmt.Errorf("error al leer el directorio: %v", err)
-			}
-			var sb strings.Builder
-			sb.WriteString(fmt.Sprintf("Directorio: %s\nContenido:\n", path))
-			for _, entry := range entries {
-				entryType := "Archivo"
-				if entry.IsDir() {
-					entryType = "Carpeta"
-				}
-				sb.WriteString(fmt.Sprintf("- [%s] %s\n", entryType, entry.Name()))
-			}
-			return sb.String(), nil
-		}
-
-		content, err := os.ReadFile(path)
-		if err != nil {
-			return "", err
-		}
-
-		// Limitar el contenido leído para no saturar contexto
-		text := string(content)
-		if len(text) > 4000 {
-			text = text[:4000] + "\n... (contenido truncado por longitud)"
-		}
-		return text, nil
-
-	case "files.create_file":
-		path, _ := args["path"].(string)
-		content, _ := args["content"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, true)
-		if err != nil {
-			return "", err
-		}
-
-		err = os.MkdirAll(filepath.Dir(resolvedPath), 0755)
-		if err != nil {
-			return "", fmt.Errorf("error al crear directorios padres: %v", err)
-		}
-
-		err = os.WriteFile(resolvedPath, []byte(content), 0644)
-		if err != nil {
-			return "", fmt.Errorf("error al escribir el archivo: %v", err)
-		}
-		return fmt.Sprintf("Archivo '%s' creado correctamente con %d bytes.", resolvedPath, len(content)), nil
-
-	case "files.delete_file":
-		path, _ := args["path"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, false)
-		if err != nil {
-			return "", err
-		}
-
-		err = os.RemoveAll(resolvedPath)
-		if err != nil {
-			return "", fmt.Errorf("error al eliminar: %v", err)
-		}
-		return fmt.Sprintf("Archivo o directorio '%s' eliminado correctamente del sistema.", resolvedPath), nil
-
-	case "files.list_directory":
-		path, _ := args["path"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, false)
-		if err != nil {
-			return "", err
-		}
-
-		entries, err := os.ReadDir(resolvedPath)
-		if err != nil {
-			return "", fmt.Errorf("error al leer el directorio: %v", err)
-		}
-		var sb strings.Builder
-		sb.WriteString(fmt.Sprintf("Directorio: %s\nContenido:\n", resolvedPath))
-		for _, entry := range entries {
-			entryType := "Archivo"
-			if entry.IsDir() {
-				entryType = "Carpeta"
-			}
-			sb.WriteString(fmt.Sprintf("- [%s] %s\n", entryType, entry.Name()))
-		}
-		return sb.String(), nil
-
-	case "files.create_directory":
-		path, _ := args["path"].(string)
-		if path == "" {
-			return "", fmt.Errorf("argumento 'path' requerido")
-		}
-
-		resolvedPath, err := o.resolvePathSmart(path, true)
-		if err != nil {
-			return "", err
-		}
-
-		err = os.MkdirAll(resolvedPath, 0755)
-		if err != nil {
-			return "", fmt.Errorf("error al crear directorio: %v", err)
-		}
-		return fmt.Sprintf("Directorio '%s' creado correctamente.", resolvedPath), nil
-
-	case "system.datetime":
-		return fmt.Sprintf("Fecha y hora actual: %s", time.Now().Format("2006-01-02 15:04:05")), nil
-
-	case "system.clipboard_copy":
-		text, _ := args["text"].(string)
-		if text == "" {
-			return "", fmt.Errorf("argumento 'text' requerido")
-		}
-
-		var cmd *exec.Cmd
-		if _, err := exec.LookPath("wl-copy"); err == nil {
-			cmd = exec.Command("wl-copy")
-		} else if _, err := exec.LookPath("xclip"); err == nil {
-			cmd = exec.Command("xclip", "-selection", "clipboard")
-		} else {
-			return "", fmt.Errorf("no se encontró ningún comando de portapapeles ('wl-copy' o 'xclip')")
-		}
-
-		cmd.Stdin = strings.NewReader(text)
-		err := cmd.Run()
-		if err != nil {
-			return "", fmt.Errorf("error al copiar al portapapeles: %v", err)
-		}
-		return "Texto copiado al portapapeles correctamente.", nil
-
-	case "system.notify":
-		title, _ := args["title"].(string)
-		message, _ := args["message"].(string)
-		if title == "" || message == "" {
-			return "", fmt.Errorf("argumentos 'title' y 'message' requeridos")
-		}
-
-		if _, err := exec.LookPath("notify-send"); err != nil {
-			return "", fmt.Errorf("notify-send no instalado")
-		}
-
-		cmd := exec.Command("notify-send", title, message)
-		err := cmd.Run()
-		if err != nil {
-			return "", fmt.Errorf("error al enviar notificación: %v", err)
-		}
-		return "Notificación de escritorio enviada.", nil
-
-	case "system.run_command":
-		command, _ := args["command"].(string)
-		if command == "" {
-			return "", fmt.Errorf("argumento 'command' requerido")
-		}
-
-		cmd := exec.Command("bash", "-c", command)
-		output, err := cmd.CombinedOutput()
-		outStr := string(output)
-		if err != nil {
-			return fmt.Sprintf("Comando ejecutado con código de error (%v). Salida:\n%s", err, outStr), nil
-		}
-		if outStr == "" {
-			outStr = "(comando ejecutado sin salida en consola)"
-		}
-		return outStr, nil
-
-	case "memory.remember":
-		key, _ := args["key"].(string)
-		val, _ := args["value"].(string)
-		cat, _ := args["category"].(string)
-
-		if key == "" || val == "" || cat == "" {
-			return "", fmt.Errorf("argumentos 'key', 'value' y 'category' requeridos")
-		}
-
-		query := `
-		INSERT INTO user_memory (key, value, category, source)
-		VALUES (?, ?, ?, 'conversation')
-		ON CONFLICT(key, category) DO UPDATE SET
-			value = excluded.value,
-			updated_at = datetime('now');
-		`
-		_, err := o.DB.Exec(query, strings.ToLower(key), val, strings.ToLower(cat))
-		if err != nil {
-			return "", fmt.Errorf("error al guardar en memoria: %v", err)
-		}
-
-		return fmt.Sprintf("He recordado que tu %s (%s) es: %s", key, cat, val), nil
+	step := planner.PlanStep{
+		ID:        "step-1",
+		ToolName:  toolName,
+		Args:      args,
+		TimeoutMs: 20000,
+	}
+	plan := planner.Plan{
+		ID:           "plan-" + time.Now().Format("20060102150405"),
+		UserInput:    "Llamada directa de herramienta",
+		Intent:       "direct_action",
+		Confidence:   1.0,
+		RiskLevel:    "low",
+		NeedsConfirm: false,
+		Steps:        []planner.PlanStep{step},
 	}
 
-	return "", fmt.Errorf("herramienta desconocida: %s", toolName)
+	res, err := o.Executor.ExecutePlan(ctx, plan)
+	if err != nil {
+		return "", err
+	}
+
+	if !res.Success {
+		if res.Error != "" {
+			return "", fmt.Errorf("%s", res.Error)
+		}
+		if len(res.Results) > 0 {
+			lastRes := res.Results[len(res.Results)-1]
+			if lastRes.Error != "" {
+				return "", fmt.Errorf("%s", lastRes.Error)
+			}
+		}
+		return "", fmt.Errorf("ejecución fallida")
+	}
+
+	if len(res.Results) > 0 {
+		return res.Results[0].Text, nil
+	}
+
+	return "", nil
 }
 
 // detectDirectIntents intenta clasificar la entrada del usuario en una o más acciones directas
@@ -1439,6 +732,58 @@ func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 		}
 	}
 	cleaned = strings.TrimSpace(cleaned)
+
+	// --- 0. Control de multimedia directo ---
+	cleanedLower := strings.ToLower(cleaned)
+
+	// Next
+	for _, kw := range []string{"siguiente", "siguiente cancion", "siguiente canción", "siguiente pista", "siguiente video", "siguiente vídeo", "cambia la musica", "cambia la música", "cambia de cancion", "cambia de canción", "cambia cancion", "cambia canción", "cambiar musica", "cambiar música"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.next", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Previous
+	for _, kw := range []string{"anterior", "cancion anterior", "canción anterior", "pista anterior", "anterior cancion", "anterior canción", "anterior pista", "anterior video", "anterior vídeo", "vuelve a la anterior"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.previous", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Pause
+	for _, kw := range []string{"pausa", "pausar", "pausa la musica", "pausa la música", "pausar musica", "pausar música", "para la musica", "para la música", "parar musica", "parar música", "detén la música", "deten la musica"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.pause", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Resume
+	for _, kw := range []string{"continua", "continúa", "reanuda", "reanudar", "sigue con la musica", "sigue con la música", "reanuda la musica", "reanuda la música", "continua la musica", "continúa la música", "reanudar la musica", "reanudar la música", "play"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.resume", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Volume Up
+	for _, kw := range []string{"sube el volumen", "subir volumen", "mas volumen", "más volumen", "sube audio", "sube el audio", "subir audio"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.volume_up", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Volume Down
+	for _, kw := range []string{"baja el volumen", "bajar volumen", "menos volumen", "baja audio", "baja el audio", "bajar audio"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.volume_down", Args: map[string]interface{}{}}}
+		}
+	}
+
+	// Mute
+	for _, kw := range []string{"silencia", "silenciar", "mutea", "mutear", "quitar volumen", "quita el volumen", "sin sonido"} {
+		if cleanedLower == kw {
+			return []DirectAction{{ToolName: "media.mute", Args: map[string]interface{}{}}}
+		}
+	}
 
 	// --- 1. Caso especial: comandos directos hablados o escritos "al pie de la letra"
 	if strings.Contains(cleaned, "desktop.open_app") {
@@ -2296,7 +1641,7 @@ func normalizeSpelling(s string) string {
 	return strings.TrimSpace(s)
 }
 
-func (o *Orchestrator) hasUserConfirmedConversational(history []ollama.Message, userInput string) bool {
+func (o *Orchestrator) hasUserConfirmedConversational(history []llm.Message, userInput string) bool {
 	if len(history) == 0 {
 		return false
 	}

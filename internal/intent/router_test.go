@@ -25,6 +25,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	_, _ = database.Exec("ALTER TABLE skills ADD COLUMN priority INTEGER DEFAULT 0;")
 	_, _ = database.Exec("ALTER TABLE skills ADD COLUMN category TEXT;")
 	_, _ = database.Exec("ALTER TABLE skills ADD COLUMN exclusive INTEGER DEFAULT 0;")
+	_, _ = database.Exec("ALTER TABLE skills ADD COLUMN status TEXT;")
 
 	// Insert mock skills
 	mockSkills := []struct{

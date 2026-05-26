@@ -198,6 +198,39 @@ CREATE TABLE IF NOT EXISTS action_log (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS tool_registry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    description TEXT,
+    category TEXT,
+    risk_level TEXT,
+    schema_json TEXT,
+    enabled INTEGER DEFAULT 1,
+    requires_confirmation INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pending_confirmations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    plan_id TEXT NOT NULL UNIQUE,
+    plan_json TEXT NOT NULL,
+    reason TEXT,
+    source TEXT,
+    session_id TEXT,
+    status TEXT DEFAULT 'pending',
+    expires_at TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS environment_capabilities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    value TEXT,
+    available INTEGER DEFAULT 0,
+    checked_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
     entity_type,
     entity_id,
@@ -205,6 +238,76 @@ CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
     body,
     path,
     tokenize = 'unicode61'
+);
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    priority TEXT DEFAULT 'normal',
+    due_at TEXT,
+    source TEXT DEFAULT 'voice',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_due_at ON tasks(status, due_at);
+
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    message TEXT,
+    remind_at TEXT NOT NULL,
+    recurrence_rule TEXT,
+    channels_json TEXT,
+    priority TEXT DEFAULT 'normal',
+    status TEXT DEFAULT 'scheduled',
+    source TEXT DEFAULT 'voice',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_status_remind_at ON reminders(status, remind_at);
+
+CREATE TABLE IF NOT EXISTS meetings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    starts_at TEXT NOT NULL,
+    ends_at TEXT,
+    location TEXT,
+    source TEXT DEFAULT 'local',
+    external_id TEXT,
+    notify_before_minutes INTEGER DEFAULT 10,
+    status TEXT DEFAULT 'scheduled',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_meetings_status_starts_at ON meetings(status, starts_at);
+
+CREATE TABLE IF NOT EXISTS scheduled_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    run_at TEXT NOT NULL,
+    status TEXT DEFAULT 'pending',
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    last_error TEXT,
+    locked_at TEXT,
+    locked_by TEXT,
+    completed_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_status_run_at ON scheduled_jobs(status, run_at);
+
+CREATE TABLE IF NOT EXISTS notification_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel TEXT NOT NULL,
+    title TEXT,
+    message TEXT NOT NULL,
+    status TEXT DEFAULT 'sent',
+    error TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 `
 
@@ -244,16 +347,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	// Intentar activar modo WAL de forma segura (no falla si el archivo está bloqueado por otro proceso)
 	_, _ = db.Exec("PRAGMA journal_mode = WAL;")
 
-	// Ejecutar esquema inicial
-	if _, err := db.Exec(Schema); err != nil {
+	// Ejecutar esquema inicial y migraciones versionadas
+	if err := RunMigrations(db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("error al crear el esquema inicial: %v", err)
+		return nil, fmt.Errorf("error ejecutando migraciones versionadas: %w", err)
 	}
-
-	// Migraciones (ignoramos errores si las columnas ya existen)
-	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN priority INTEGER DEFAULT 0;")
-	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN category TEXT;")
-	_, _ = db.Exec("ALTER TABLE skills ADD COLUMN exclusive INTEGER DEFAULT 0;")
 
 	return db, nil
 }

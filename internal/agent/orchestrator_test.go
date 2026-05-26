@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"rbot/internal/db"
+	"rbot/internal/llm"
+	ollamaProvider "rbot/internal/llm/ollama"
 	"rbot/internal/mcp"
-	"rbot/internal/ollama"
 	"strings"
 	"testing"
 )
@@ -33,8 +34,8 @@ func TestOrchestratorBuildSystemPrompt(t *testing.T) {
 	_, _ = database.Exec("INSERT INTO app_launchers (name, display_name, executable, command, is_available) VALUES ('firefox', 'Firefox Web Browser', 'firefox', 'firefox', 1)")
 	_, _ = database.Exec("INSERT INTO skills (name, description, path, skill_md_path, enabled) VALUES ('music-skill', 'Reproducir musica', 'path', 'path_md', 1)")
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot")
-	prompt := o.BuildSystemPrompt([]string{"Contexto especial"})
+	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+	prompt := o.BuildSystemPrompt([]string{"Contexto especial"}, "hola")
 
 	if !strings.Contains(prompt, "Juan") {
 		t.Errorf("Expected prompt to contain remembered user name 'Juan', got: %s", prompt)
@@ -48,7 +49,7 @@ func TestOrchestratorBuildSystemPrompt(t *testing.T) {
 }
 
 func TestOrchestratorGetAvailableTools(t *testing.T) {
-	o := NewOrchestrator(nil, nil, mcp.NewServerManager(), nil, nil, "RBot")
+	o := NewOrchestrator(nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 	tools := o.GetAvailableTools(context.Background())
 
 	foundOpenApp := false
@@ -87,7 +88,7 @@ func TestOrchestratorDetectDirectIntents(t *testing.T) {
 	// Insert app firefox to db so findBestAppMatch works
 	_, _ = database.Exec("INSERT INTO app_launchers (name, display_name, executable, command, is_available) VALUES ('firefox', 'Firefox Web Browser', 'firefox', 'firefox', 1)")
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot")
+	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 
 	home, _ := os.UserHomeDir()
 	expectedDescargasPath := "descargas"
@@ -167,7 +168,7 @@ func TestOrchestratorExecuteTool(t *testing.T) {
 	}
 	defer database.Close()
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, []string{tempDir}, "RBot")
+	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, []string{tempDir}, "RBot", nil)
 
 	// 1. Test memory.remember
 	args := map[string]interface{}{
@@ -271,7 +272,7 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 	}
 	defer database.Close()
 
-	// Setup mock HTTP server for Ollama LLM responses
+	// Setup mock HTTP server for LLM responses (Ollama wire format)
 	callCount := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -280,14 +281,19 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 		callCount++
 		if callCount == 1 {
 			// First call: LLM decides to call tool 'memory.remember'
-			resp := ollama.ChatResponse{
+			type ollamaChatResp struct {
+				Model   string      `json:"model"`
+				Message llm.Message `json:"message"`
+				Done    bool        `json:"done"`
+			}
+			resp := ollamaChatResp{
 				Model: "llama3",
-				Message: ollama.Message{
+				Message: llm.Message{
 					Role: "assistant",
-					ToolCalls: []ollama.ToolCall{
+					ToolCalls: []llm.ToolCall{
 						{
 							Type: "function",
-							Function: ollama.FunctionCall{
+							Function: llm.FunctionCall{
 								Name: "memory.remember",
 								Arguments: map[string]interface{}{
 									"key":      "color",
@@ -303,9 +309,14 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		} else {
 			// Second call: LLM receives tool execution results and replies with final text
-			resp := ollama.ChatResponse{
+			type ollamaChatResp struct {
+				Model   string      `json:"model"`
+				Message llm.Message `json:"message"`
+				Done    bool        `json:"done"`
+			}
+			resp := ollamaChatResp{
 				Model: "llama3",
-				Message: ollama.Message{
+				Message: llm.Message{
 					Role:    "assistant",
 					Content: "He recordado que su color favorito es el azul, señor.",
 				},
@@ -316,10 +327,10 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 	}))
 	defer server.Close()
 
-	ollamaClient := ollama.NewClient(server.URL, "llama3")
+	ollamaP := ollamaProvider.NewProvider(server.URL, "llama3", "")
 	mcpManager := mcp.NewServerManager()
 	
-	o := NewOrchestrator(database, ollamaClient, mcpManager, nil, nil, "RBot")
+	o := NewOrchestrator(database, ollamaP, mcpManager, nil, nil, "RBot", nil)
 	
 	ctx := context.Background()
 	reply, err := o.Chat(ctx, "recuerda que mi color favorito es el azul", nil)
@@ -343,5 +354,48 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 	}
 	if val != "azul" {
 		t.Errorf("Expected DB color value 'azul', got %q", val)
+	}
+}
+
+func TestOrchestratorDirectMediaIntents(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "rbot-orchestrator-media")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	dbPath := filepath.Join(tempDir, "test.db")
+	database, err := db.InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to init db: %v", err)
+	}
+	defer database.Close()
+
+	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+
+	tests := []struct {
+		input            string
+		expectedToolName string
+	}{
+		{"cambia la música", "media.next"},
+		{"siguiente canción", "media.next"},
+		{"anterior pista", "media.previous"},
+		{"pausa la música", "media.pause"},
+		{"reanuda la música", "media.resume"},
+		{"sube el volumen", "media.volume_up"},
+		{"baja el volumen", "media.volume_down"},
+		{"silencia", "media.mute"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			actions := o.detectDirectIntents(tt.input)
+			if len(actions) == 0 {
+				t.Fatalf("Expected direct action for %q, got none", tt.input)
+			}
+			if actions[0].ToolName != tt.expectedToolName {
+				t.Errorf("Expected tool %q, got %q", tt.expectedToolName, actions[0].ToolName)
+			}
+		})
 	}
 }

@@ -23,6 +23,8 @@ var (
 	vadThreshold     float64 = 550.0
 	WhisperThreads   int     = 4
 	WhisperFlags     string  = ""
+
+	OnAudioLevel     func(level float64) // callback para reportar volumen del micrófono
 )
 
 // StartVoiceEngine inicializa el motor de voz de Go validando los binarios disponibles.
@@ -305,6 +307,14 @@ func recordWithGoVAD(wavFile string) error {
 			sum += float64(absVal)
 		}
 		avg := sum / (float64(len(chunk)) / 2.0)
+
+		if OnAudioLevel != nil {
+			normalized := avg / 3000.0
+			if normalized > 1.0 {
+				normalized = 1.0
+			}
+			OnAudioLevel(normalized)
+		}
 
 		// Máquina de estados para detección de voz
 		if avg > threshold {

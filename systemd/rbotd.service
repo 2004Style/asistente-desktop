@@ -1,0 +1,12 @@
+[Unit]
+Description=RBot Local Agent Runtime Daemon
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rbotd
+Restart=on-failure
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+[Install]
+WantedBy=default.target
