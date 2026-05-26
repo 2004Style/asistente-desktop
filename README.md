@@ -88,16 +88,15 @@ Dónde están las cosas (mapa rápido)
 - config/rbot.yaml - config principal (dev: config/rbot.yaml)
 - config/providers.yaml - providers config (escrito por onboarding)
 
-Desktop GUI (Fyne)
+Desktop GUI (Gio)
 
-Se añadió una interfaz de escritorio mínima usando Fyne en `cmd/rbot-settings-ui` para configurar proveedor, modelo y secret-ref desde GUI.
+Se añadió una ventana de escritorio futurista usando Gio en `cmd/rbot-settings-gio` para configurar proveedor, modelo y secret-ref desde una UI inmediata y más flexible visualmente.
 
 Requisitos (Linux):
 - Go >= 1.20
-- Dependencias del sistema para Fyne (puede variar según distro). En Debian/Ubuntu típicamente:
-  - libgl1-mesa-dev libglu1-mesa-dev xorg-dev libx11-dev
-  - On Debian/Ubuntu: `sudo apt install libgl1-mesa-dev xorg-dev libx11-dev`
-- Para keyring: el paquete `libsecret-1-dev` y configuración si querés usar keyring en Linux.
+- Dependencias del sistema para Gio/GLFW/OpenGL (varía por distro). En Debian/Ubuntu típicamente:
+  - `sudo apt install xorg-dev libgl1-mesa-dev libx11-dev`
+- Para keyring: el paquete `libsecret-1-dev` si querés usar `keyring:` en Linux.
 
 Cómo ejecutar (dev):
 
@@ -112,14 +111,19 @@ Cómo ejecutar (dev):
 
 ```bash
 # si compilaste:
-./bin/rbot-settings-ui
+./bin/rbot-settings-gio
 # o en desarrollo:
-go run cmd/rbot-settings-ui
+go run cmd/rbot-settings-gio
 ```
+
+Notas:
+- La UI usa un tema oscuro con acentos neon.
+- Los botones de provider cargan rápidamente el modelo y el secret-ref desde `config/providers.yaml`.
+- El binario `cmd/rbot-settings-ui` quedó como compat/stub para no romper la suite, pero la ruta principal es Gio.
 
 Smoke script
 
-Hay un script auxiliar `scripts/smoke_gui.sh` que intenta arrancar `rbotd` (si existe en ./bin) y lanzar la UI en foreground. Es útil para pruebas manuales en desktop.
+Hay un script auxiliar `scripts/smoke_gui.sh` que intenta arrancar `rbotd` (si existe en ./bin) y lanzar la UI Gio en foreground. Es útil para pruebas manuales en desktop.
 
 Contribuir
 
