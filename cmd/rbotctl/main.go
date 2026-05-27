@@ -34,6 +34,14 @@ func main() {
 		return
 	}
 
+	if len(os.Args) > 1 && strings.ToLower(os.Args[1]) == "settings" {
+		if len(os.Args) < 3 {
+			printUsage()
+			return
+		}
+		os.Args = append([]string{os.Args[0]}, os.Args[2:]...)
+	}
+
 	cmd := strings.ToLower(os.Args[1])
 
 	switch cmd {
@@ -524,17 +532,20 @@ func main() {
 
 func printUsage() {
 	fmt.Println("Uso: rbotctl <comando> [argumentos]")
-	fmt.Println("\nComandos disponibles en el cliente daemon:")
+	fmt.Println("\nEstado y control del daemon:")
 	fmt.Println("  status                     Muestra el estado del daemon rbotd en ejecución.")
 	fmt.Println("  say \"<mensaje>\"            Envía una orden al daemon para que la procese e informe.")
-	fmt.Println("  providers list             Muestra los proveedores LLM registrados.")
-	fmt.Println("  providers status           Muestra el estado del proveedor LLM activo.")
+	fmt.Println("\nConfiguración LLM:")
+	fmt.Println("  settings <providers|models|status> Alias único para la configuración.")
+	fmt.Println("  providers list             Lista proveedores LLM registrados.")
+	fmt.Println("  providers status           Muestra el proveedor LLM activo.")
 	fmt.Println("  providers use <nombre>     Cambia el proveedor LLM activo.")
 	fmt.Println("  providers set-default <n>  Alias de providers use.")
-	fmt.Println("  models list [--provider p] Muestra modelos del proveedor activo o del indicado.")
+	fmt.Println("  models list [--provider p] Lista modelos del proveedor activo o del indicado.")
 	fmt.Println("  models current             Muestra proveedor/modelo activo.")
 	fmt.Println("  models switch <modelo>     Cambia el modelo activo del proveedor actual.")
 	fmt.Println("  models switch <prov> <mod> Cambia proveedor y modelo activos.")
+	fmt.Println("\nAutomatización y workspace:")
 	fmt.Println("  skills list                Muestra las habilidades registradas en el daemon.")
 	fmt.Println("  skills info <nombre>       Muestra información detallada de una habilidad.")
 	fmt.Println("  skills install <zipPath>   Instala una habilidad localmente desde un ZIP.")
@@ -546,9 +557,11 @@ func printUsage() {
 	fmt.Println("  workspace reload           Fuerza la recarga de los archivos del workspace.")
 	fmt.Println("  workspace validate         Valida las políticas y macros del workspace.")
 	fmt.Println("  shortcuts list             Lista los atajos de teclado y macros configurados.")
-	fmt.Println("  mcp list                   Muestra los servidores MCP activos en el daemon.")
+	fmt.Println("\nHUD:")
 	fmt.Println("  hud show                   Muestra la interfaz HUD.")
 	fmt.Println("  hud hide                   Oculta la interfaz HUD.")
 	fmt.Println("  hud state <estado>         Fuerza un estado en el orbe del HUD (ej: thinking).")
 	fmt.Println("  hud notify \"<msg>\" [prior] Envía una notificación directa al HUD.")
+	fmt.Println("\nMCP:")
+	fmt.Println("  mcp list                   Muestra los servidores MCP activos en el daemon.")
 }

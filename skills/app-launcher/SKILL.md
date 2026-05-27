@@ -41,8 +41,8 @@ Abre aplicaciones locales, priorizando enfocar una instancia existente antes de 
 
 - `apps.search(query="<nombre>")`
 - `apps.launch(desktop_id="<id>")`
-- `system.run_command(command="gtk-launch <desktop-id>")`
-- `system.run_command(command="hyprctl dispatch focuswindow class:<class>")`
+- `system.run_command_safe(command="gtk-launch <desktop-id>")`
+- `system.run_command_safe(command="hyprctl dispatch focuswindow class:<class>")`
 
 ## Ejemplos
 

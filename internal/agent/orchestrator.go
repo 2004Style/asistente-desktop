@@ -347,7 +347,7 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			decision := o.Executor.Policy.EvaluateTool(ctx, toolHandler, args)
 
 			// Extra check for shell critical commands: escalate to require confirmation
-			if toolName == "system.run_command" {
+			if toolName == "system.run_command_safe" {
 				if cmdStr, ok := args["command"].(string); ok {
 					if security.IsCommandCritical(cmdStr) {
 						decision.RequiresConfirm = true
@@ -513,7 +513,7 @@ func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm
 			}
 
 			allowed, requiresConfirm, reason := security.ValidateToolAction(o.DB, toolName, targetPath, o.BlockedPaths)
-			if toolName == "system.run_command" {
+			if toolName == "system.run_command_safe" {
 				if cmdStr, ok := args["command"].(string); ok {
 					if security.IsCommandCritical(cmdStr) {
 						requiresConfirm = true

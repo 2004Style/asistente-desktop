@@ -44,21 +44,19 @@ func BuildRegistry(conf *config.Config, providers *config.ProvidersConfig, secre
 		}
 	}
 
-	if len(registry.List()) == 0 && conf != nil {
-		fallback := ollama.NewProvider(conf.Model.BaseURL, conf.Model.Model, "")
-		fallback.SetTemperature(conf.Model.Temperature)
-		if err := registry.Register(fallback); err != nil {
-			return nil, err
-		}
-		warnings = append(warnings, "no enabled provider could be registered; using legacy ollama model config")
+	if len(registry.List()) == 0 {
+		return nil, fmt.Errorf("no enabled LLM providers could be registered from providers.yaml")
 	}
 
 	active := providers.ActiveProvider
-	if active == "" && conf != nil {
-		active = conf.Model.Provider
+	if active == "" {
+		for _, p := range registry.List() {
+			active = p.Name()
+			break
+		}
 	}
 	if active == "" {
-		active = "ollama"
+		return nil, fmt.Errorf("no active provider could be selected")
 	}
 	if activeModel := providers.ActiveModel; activeModel != "" {
 		if p, ok := registry.Get(active); ok {

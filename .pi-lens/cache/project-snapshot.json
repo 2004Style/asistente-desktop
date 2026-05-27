@@ -1,0 +1,1665 @@
+{
+  "version": 1,
+  "projectRoot": "/home/style/Documentos/lenguajes/go/asistente",
+  "generatedAt": "2026-05-27T17:57:05.378Z",
+  "seq": 1,
+  "files": {
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud-test/main_stub.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud-test/main_stub.go",
+      "mtimeMs": 1779807231732.3447,
+      "size": 174,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud-test/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud-test/main.go",
+      "mtimeMs": 1779807517328.7976,
+      "size": 3982,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud/main.go",
+      "mtimeMs": 1779757657945.6326,
+      "size": 1327,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-gio/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-gio/main.go",
+      "mtimeMs": 1779889968575.675,
+      "size": 12703,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-gui/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-gui/main.go",
+      "mtimeMs": 1779814771430.0664,
+      "size": 131,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-ui/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-ui/main.go",
+      "mtimeMs": 1779814222078.2065,
+      "size": 5897,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings/main.go",
+      "mtimeMs": 1779810696903.8972,
+      "size": 4246,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main_test.go",
+      "mtimeMs": 1779689803524.9949,
+      "size": 3006,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main.go",
+      "mtimeMs": 1779810252912.845,
+      "size": 19553,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotctl/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotctl/main.go",
+      "mtimeMs": 1779808050378.6494,
+      "size": 18277,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotd/main.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotd/main.go",
+      "mtimeMs": 1779738750875.0679,
+      "size": 3025,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator_test.go",
+      "mtimeMs": 1779761696617.0212,
+      "size": 11698,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator.go",
+      "mtimeMs": 1779811621793.9443,
+      "size": 56492,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner_test.go",
+      "mtimeMs": 1779657339660.855,
+      "size": 5713,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner.go",
+      "mtimeMs": 1779560895761.8586,
+      "size": 4880,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session_test.go",
+      "mtimeMs": 1779690347819.9182,
+      "size": 496,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session.go",
+      "mtimeMs": 1779689310572.2302,
+      "size": 1797,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/config_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/config/config_test.go",
+      "mtimeMs": 1779808885828.4006,
+      "size": 6702,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/config.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/config/config.go",
+      "mtimeMs": 1779808865983.4026,
+      "size": 17921,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers_test.go",
+      "mtimeMs": 1779807921629.7258,
+      "size": 1736,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers.go",
+      "mtimeMs": 1779808771073.834,
+      "size": 2196,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/migrations.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/db/migrations.go",
+      "mtimeMs": 1779761484409.61,
+      "size": 14196,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite_test.go",
+      "mtimeMs": 1779656112283.4583,
+      "size": 2296,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite.go",
+      "mtimeMs": 1779758021560.672,
+      "size": 10372,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher_test.go",
+      "mtimeMs": 1779657459176.4507,
+      "size": 541,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher.go",
+      "mtimeMs": 1779580810516.8088,
+      "size": 1753,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/capabilities.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/environment/capabilities.go",
+      "mtimeMs": 1779741815976.967,
+      "size": 1083,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/detector.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/environment/detector.go",
+      "mtimeMs": 1779741838143.5842,
+      "size": 3905,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/store.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/environment/store.go",
+      "mtimeMs": 1779741816054.415,
+      "size": 3310,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor_test.go",
+      "mtimeMs": 1779739962519.4666,
+      "size": 1874,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor.go",
+      "mtimeMs": 1779739227488.1746,
+      "size": 5034,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/registry.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/executor/registry.go",
+      "mtimeMs": 1779761511342.0103,
+      "size": 2970,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/tool.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/executor/tool.go",
+      "mtimeMs": 1779739168717.3147,
+      "size": 859,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/files_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/files/files_test.go",
+      "mtimeMs": 1779657570683.8093,
+      "size": 6156,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/finder.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/files/finder.go",
+      "mtimeMs": 1779674343732.8535,
+      "size": 8364,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/indexer.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/files/indexer.go",
+      "mtimeMs": 1779591627423.896,
+      "size": 7186,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/client.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/client.go",
+      "mtimeMs": 1779757010258.0845,
+      "size": 1917,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/events.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/events.go",
+      "mtimeMs": 1779756998980.2283,
+      "size": 209,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper_test.go",
+      "mtimeMs": 1779757539471.5603,
+      "size": 3015,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper.go",
+      "mtimeMs": 1779757556764.8804,
+      "size": 5574,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/notifications.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/notifications.go",
+      "mtimeMs": 1779757530751.3965,
+      "size": 2624,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer_stub.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer_stub.go",
+      "mtimeMs": 1779807206018.8303,
+      "size": 556,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer.go",
+      "mtimeMs": 1779807517234.7922,
+      "size": 15761,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/state.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/hud/state.go",
+      "mtimeMs": 1779757551464.783,
+      "size": 495,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent_test.go",
+      "mtimeMs": 1779741032141.0518,
+      "size": 2757,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent.go",
+      "mtimeMs": 1779740794174.117,
+      "size": 531,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/normalizer.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/normalizer.go",
+      "mtimeMs": 1779740661042.4592,
+      "size": 3844,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router_test.go",
+      "mtimeMs": 1779758878248.9187,
+      "size": 3294,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router.go",
+      "mtimeMs": 1779740846055.628,
+      "size": 2514,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/scoring.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/scoring.go",
+      "mtimeMs": 1779740842153.8086,
+      "size": 2742,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots.go",
+      "mtimeMs": 1779740786515.5005,
+      "size": 2096,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/app.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/app.go",
+      "mtimeMs": 1779740700851.1055,
+      "size": 711,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/browser.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/browser.go",
+      "mtimeMs": 1779740768619.9656,
+      "size": 1804,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/datetime.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/datetime.go",
+      "mtimeMs": 1779740774161.1287,
+      "size": 1688,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/file.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/file.go",
+      "mtimeMs": 1779740765957.5522,
+      "size": 1987,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/input.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/input.go",
+      "mtimeMs": 1779740778271.9185,
+      "size": 2545,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/media.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/media.go",
+      "mtimeMs": 1779740770894.2966,
+      "size": 1134,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/system.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/system.go",
+      "mtimeMs": 1779740780704.7944,
+      "size": 1669,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/splitter.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/intent/splitter.go",
+      "mtimeMs": 1779741061502.0186,
+      "size": 1961,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/client.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/client.go",
+      "mtimeMs": 1779738594714.2402,
+      "size": 1641,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/events.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/events.go",
+      "mtimeMs": 1779738604534.1548,
+      "size": 2261,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/ipc_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/ipc_test.go",
+      "mtimeMs": 1779738614842.0671,
+      "size": 2528,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/protocol.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/protocol.go",
+      "mtimeMs": 1779738572083.4438,
+      "size": 1888,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/server.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/server.go",
+      "mtimeMs": 1779738583812.3372,
+      "size": 3145,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap_test.go",
+      "mtimeMs": 1779807866151.14,
+      "size": 2001,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap.go",
+      "mtimeMs": 1779808109457.1416,
+      "size": 3065,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/compatible/provider.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/compatible/provider.go",
+      "mtimeMs": 1779761466196.624,
+      "size": 7275,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/llm_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/llm_test.go",
+      "mtimeMs": 1779808050376.893,
+      "size": 6433,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/manager.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/manager.go",
+      "mtimeMs": 1779807884888.6921,
+      "size": 8635,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/ollama/provider.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/ollama/provider.go",
+      "mtimeMs": 1779761442842.5798,
+      "size": 7508,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/openai/provider.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/openai/provider.go",
+      "mtimeMs": 1779808118669.3262,
+      "size": 8201,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/provider.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/provider.go",
+      "mtimeMs": 1779761352089.929,
+      "size": 3498,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/registry.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/llm/registry.go",
+      "mtimeMs": 1779761381996.2014,
+      "size": 1887,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client_test.go",
+      "mtimeMs": 1779656493804.6812,
+      "size": 3296,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client.go",
+      "mtimeMs": 1779656895255.6384,
+      "size": 10336,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/tool_adapter.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/tool_adapter.go",
+      "mtimeMs": 1779739588942.6455,
+      "size": 2360,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding_test.go",
+      "mtimeMs": 1779808815806.3,
+      "size": 2867,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding.go",
+      "mtimeMs": 1779810104635.9246,
+      "size": 6014,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality_test.go",
+      "mtimeMs": 1779693480329.178,
+      "size": 2182,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality.go",
+      "mtimeMs": 1779693398128.0955,
+      "size": 3002,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/builder.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/builder.go",
+      "mtimeMs": 1779740861475.9233,
+      "size": 1854,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/dependencies.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/dependencies.go",
+      "mtimeMs": 1779740864599.7825,
+      "size": 1434,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan_test.go",
+      "mtimeMs": 1779690363888.431,
+      "size": 597,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan.go",
+      "mtimeMs": 1779740855036.2156,
+      "size": 1530,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/planner_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/planner_test.go",
+      "mtimeMs": 1779741037174.2444,
+      "size": 1783,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/recovery.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/planner/recovery.go",
+      "mtimeMs": 1779740867311.6035,
+      "size": 894,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/characterization_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/characterization_test.go",
+      "mtimeMs": 1779811732895.9463,
+      "size": 2269,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation_test.go",
+      "mtimeMs": 1779741071140.6875,
+      "size": 3399,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation.go",
+      "mtimeMs": 1779741066046.8618,
+      "size": 2126,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine_test.go",
+      "mtimeMs": 1779807323900.007,
+      "size": 5145,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine.go",
+      "mtimeMs": 1779811574430.3145,
+      "size": 5035,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/immutable_rules.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/immutable_rules.go",
+      "mtimeMs": 1779758600137.5278,
+      "size": 968,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/pending.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/pending.go",
+      "mtimeMs": 1779740914895.598,
+      "size": 2370,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/workspace_policy.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/policy/workspace_policy.go",
+      "mtimeMs": 1779758651654.9836,
+      "size": 3248,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon_test.go",
+      "mtimeMs": 1779808050378.282,
+      "size": 6221,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon.go",
+      "mtimeMs": 1779811633861.125,
+      "size": 32444,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus_test.go",
+      "mtimeMs": 1779737849035.6328,
+      "size": 1485,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus.go",
+      "mtimeMs": 1779737844578.6003,
+      "size": 1481,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/lock.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/lock.go",
+      "mtimeMs": 1779738561005.5469,
+      "size": 996,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/types.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/types.go",
+      "mtimeMs": 1779738550396.8062,
+      "size": 751,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/jobs.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/jobs.go",
+      "mtimeMs": 1779756265386.638,
+      "size": 7973,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recovery.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recovery.go",
+      "mtimeMs": 1779756258912.6025,
+      "size": 4069,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recurrence.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recurrence.go",
+      "mtimeMs": 1779756242670.3218,
+      "size": 3066,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler_test.go",
+      "mtimeMs": 1779756424459.1538,
+      "size": 4887,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler.go",
+      "mtimeMs": 1779756271100.809,
+      "size": 4944,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/env.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/env.go",
+      "mtimeMs": 1779807803045.4,
+      "size": 395,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/keyring.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/keyring.go",
+      "mtimeMs": 1779810267459.283,
+      "size": 891,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager_test.go",
+      "mtimeMs": 1779807819315.681,
+      "size": 976,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager.go",
+      "mtimeMs": 1779810333250.2551,
+      "size": 1258,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions_test.go",
+      "mtimeMs": 1779656185855.111,
+      "size": 4645,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions.go",
+      "mtimeMs": 1779811762838.253,
+      "size": 3857,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/examples.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/examples.go",
+      "mtimeMs": 1779758328406.9824,
+      "size": 403,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer_test.go",
+      "mtimeMs": 1779812113028.1719,
+      "size": 2501,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer.go",
+      "mtimeMs": 1779811990647.0046,
+      "size": 6291,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager_test.go",
+      "mtimeMs": 1779758399861.6787,
+      "size": 3777,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager.go",
+      "mtimeMs": 1779758855726.7307,
+      "size": 8047,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/parser.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/parser.go",
+      "mtimeMs": 1779758296647.6655,
+      "size": 1521,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/permissions.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/permissions.go",
+      "mtimeMs": 1779758323183.9307,
+      "size": 726,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/quarantine.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/quarantine.go",
+      "mtimeMs": 1779758317754.8767,
+      "size": 1136,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/skill_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/skill_test.go",
+      "mtimeMs": 1779758363945.3315,
+      "size": 6098,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/validator.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/skills/validator.go",
+      "mtimeMs": 1779758302209.7212,
+      "size": 2245,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/parser.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/parser.go",
+      "mtimeMs": 1779755766279.3088,
+      "size": 625,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/relative.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/relative.go",
+      "mtimeMs": 1779755950946.0183,
+      "size": 11142,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/spanish.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/spanish.go",
+      "mtimeMs": 1779755774361.329,
+      "size": 1249,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/timeparser_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/timeparser_test.go",
+      "mtimeMs": 1779755790737.1663,
+      "size": 3852,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/matcher.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/matcher.go",
+      "mtimeMs": 1779742683549.6858,
+      "size": 7246,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/open_url.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/open_url.go",
+      "mtimeMs": 1779739299026.0286,
+      "size": 1543,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/read_url.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/read_url.go",
+      "mtimeMs": 1779739636533.6072,
+      "size": 2913,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/register.go",
+      "mtimeMs": 1779742110139.2124,
+      "size": 880,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/search.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/search.go",
+      "mtimeMs": 1779739307023.5125,
+      "size": 1578,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session_tool_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session_tool_test.go",
+      "mtimeMs": 1779742653766.5664,
+      "size": 2673,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session.go",
+      "mtimeMs": 1779742098999.3816,
+      "size": 6187,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/youtube.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/youtube.go",
+      "mtimeMs": 1779739335713.9626,
+      "size": 4147,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/capabilities_tool.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/capabilities_tool.go",
+      "mtimeMs": 1779741967195.442,
+      "size": 2878,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/close_app.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/close_app.go",
+      "mtimeMs": 1779739283978.0571,
+      "size": 3812,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/hyprland.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/hyprland.go",
+      "mtimeMs": 1779741847926.4167,
+      "size": 5987,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/noop.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/noop.go",
+      "mtimeMs": 1779741900161.537,
+      "size": 1234,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_app.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_app.go",
+      "mtimeMs": 1779739865875.4897,
+      "size": 5425,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_folder.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_folder.go",
+      "mtimeMs": 1779739654171.5945,
+      "size": 2527,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/register.go",
+      "mtimeMs": 1779741979869.2385,
+      "size": 1550,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/sway.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/sway.go",
+      "mtimeMs": 1779741869793.0454,
+      "size": 5108,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window_tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window_tools.go",
+      "mtimeMs": 1779741938348.909,
+      "size": 11869,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window.go",
+      "mtimeMs": 1779741824189.8247,
+      "size": 1881,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/x11.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/x11.go",
+      "mtimeMs": 1779741891806.6763,
+      "size": 4437,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create_dir.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create_dir.go",
+      "mtimeMs": 1779739669435.6794,
+      "size": 1705,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create.go",
+      "mtimeMs": 1779739466213.7727,
+      "size": 2164,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/delete.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/delete.go",
+      "mtimeMs": 1779739662096.8674,
+      "size": 1862,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/list_dir.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/list_dir.go",
+      "mtimeMs": 1779739665967.9106,
+      "size": 2302,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/read.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/read.go",
+      "mtimeMs": 1779739462954.7766,
+      "size": 2698,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/register.go",
+      "mtimeMs": 1779739674184.5808,
+      "size": 876,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/resolver.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/resolver.go",
+      "mtimeMs": 1779739457078.1897,
+      "size": 2906,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/search.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/search.go",
+      "mtimeMs": 1779739450821.7917,
+      "size": 1872,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input_tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input_tools.go",
+      "mtimeMs": 1779741935909.9485,
+      "size": 12954,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input.go",
+      "mtimeMs": 1779741819290.9094,
+      "size": 972,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/keymap.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/keymap.go",
+      "mtimeMs": 1779741843542.4917,
+      "size": 4639,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/noop.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/noop.go",
+      "mtimeMs": 1779741890465.6985,
+      "size": 1220,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/register.go",
+      "mtimeMs": 1779741942690.8381,
+      "size": 638,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/wayland.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/wayland.go",
+      "mtimeMs": 1779741882452.8325,
+      "size": 4879,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/x11.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/x11.go",
+      "mtimeMs": 1779741860526.2024,
+      "size": 3002,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/media_tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/media_tools.go",
+      "mtimeMs": 1779742018335.4414,
+      "size": 12867,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/player.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/player.go",
+      "mtimeMs": 1779741959354.568,
+      "size": 2529,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/register.go",
+      "mtimeMs": 1779742023924.541,
+      "size": 520,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/volume.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/volume.go",
+      "mtimeMs": 1779741978677.2576,
+      "size": 5436,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/meetings_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/meetings_test.go",
+      "mtimeMs": 1779756498329.1387,
+      "size": 3009,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/register.go",
+      "mtimeMs": 1779756229469.7412,
+      "size": 731,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/repository.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/repository.go",
+      "mtimeMs": 1779756220417.9275,
+      "size": 7481,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/tools.go",
+      "mtimeMs": 1779756226385.0344,
+      "size": 12610,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/register.go",
+      "mtimeMs": 1779739701640.5635,
+      "size": 306,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/remember.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/remember.go",
+      "mtimeMs": 1779740113721.4526,
+      "size": 2235,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/desktop.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/desktop.go",
+      "mtimeMs": 1779756112737.8384,
+      "size": 357,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/hud.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/hud.go",
+      "mtimeMs": 1779756412545.987,
+      "size": 239,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/notify.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/notify.go",
+      "mtimeMs": 1779756405119.8818,
+      "size": 4439,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/register.go",
+      "mtimeMs": 1779756150785.6333,
+      "size": 327,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/sound.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/sound.go",
+      "mtimeMs": 1779756120197.4077,
+      "size": 1433,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/tools.go",
+      "mtimeMs": 1779756148426.566,
+      "size": 2252,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/voice.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/voice.go",
+      "mtimeMs": 1779756114856.3223,
+      "size": 153,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/register.go",
+      "mtimeMs": 1779756210016.9912,
+      "size": 656,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/reminders_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/reminders_test.go",
+      "mtimeMs": 1779756493905.0818,
+      "size": 3426,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/repository.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/repository.go",
+      "mtimeMs": 1779756200762.5688,
+      "size": 7397,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/tools.go",
+      "mtimeMs": 1779756207226.688,
+      "size": 12201,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/clipboard.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/clipboard.go",
+      "mtimeMs": 1779739683275.575,
+      "size": 1796,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/datetime.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/datetime.go",
+      "mtimeMs": 1779739678428.578,
+      "size": 989,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/legacy_shell.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/legacy_shell.go",
+      "mtimeMs": 1779739686923.5725,
+      "size": 1746,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/notify.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/notify.go",
+      "mtimeMs": 1779739483583.752,
+      "size": 1867,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/register.go",
+      "mtimeMs": 1779739692107.5693,
+      "size": 579,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/shell.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/shell.go",
+      "mtimeMs": 1779739883308.4846,
+      "size": 1878,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/register.go",
+      "mtimeMs": 1779756183770.3518,
+      "size": 800,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/repository.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/repository.go",
+      "mtimeMs": 1779756169448.9775,
+      "size": 5135,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tasks_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tasks_test.go",
+      "mtimeMs": 1779756489407.024,
+      "size": 2354,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tools.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tools.go",
+      "mtimeMs": 1779756181360.7603,
+      "size": 14653,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/workspace/register.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/tools/workspace/register.go",
+      "mtimeMs": 1779758567992.2397,
+      "size": 13553,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio_test.go",
+      "mtimeMs": 1779657605927.4048,
+      "size": 2857,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio.go",
+      "mtimeMs": 1779756872909.1394,
+      "size": 12433,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context_builder.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context_builder.go",
+      "mtimeMs": 1779758254649.2385,
+      "size": 3351,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context.go",
+      "mtimeMs": 1779758203224.703,
+      "size": 640,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/defaults.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/defaults.go",
+      "mtimeMs": 1779758208027.7534,
+      "size": 2339,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/loader.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/loader.go",
+      "mtimeMs": 1779758229255.0898,
+      "size": 3625,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/validator.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/validator.go",
+      "mtimeMs": 1779758247205.6455,
+      "size": 2269,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/watcher.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/watcher.go",
+      "mtimeMs": 1779758238987.077,
+      "size": 1924,
+      "imports": [],
+      "lastSeq": 0
+    },
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/workspace_test.go": {
+      "path": "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/workspace_test.go",
+      "mtimeMs": 1779758261140.3052,
+      "size": 5337,
+      "imports": [],
+      "lastSeq": 0
+    }
+  },
+  "symbols": {},
+  "reverseDeps": {
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-hud/main.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot-settings-gio/main.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbot/main.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotctl/main.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/cmd/rbotd/main.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/agent/orchestrator.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/apps/scanner.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/browser/session.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/config_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/config.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/config/providers.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/migrations.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/db/sqlite.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/desktop/launcher.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/capabilities.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/detector.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/environment/store.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/executor.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/registry.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/executor/tool.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/files_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/finder.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/files/indexer.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/client.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/events.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/mapper.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/notifications.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer_stub.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/renderer.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/hud/state.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/intent.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/normalizer.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/router.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/scoring.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/app.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/browser.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/datetime.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/file.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/input.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/media.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/slots/system.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/intent/splitter.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/client.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/events.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/ipc_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/protocol.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/ipc/server.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/bootstrap/bootstrap.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/compatible/provider.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/llm_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/manager.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/ollama/provider.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/openai/provider.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/provider.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/llm/registry.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/client.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/mcp/tool_adapter.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/onboarding/onboarding.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/personality/personality.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/builder.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/dependencies.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/plan.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/planner_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/planner/recovery.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/characterization_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/confirmation.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/engine.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/immutable_rules.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/pending.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/policy/workspace_policy.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/daemon.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/eventbus.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/lock.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/runtime/types.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/jobs.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recovery.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/recurrence.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/scheduler/scheduler.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/env.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/keyring.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/secrets/manager.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/security/permissions.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/examples.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/installer.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/manager.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/parser.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/permissions.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/quarantine.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/skill_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/skills/validator.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/parser.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/relative.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/spanish.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/timeparser/timeparser_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/matcher.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/open_url.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/read_url.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/search.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session_tool_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/session.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/browser/youtube.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/capabilities_tool.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/close_app.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/hyprland.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/noop.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_app.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/open_folder.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/sway.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window_tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/window.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/desktop/x11.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create_dir.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/create.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/delete.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/list_dir.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/read.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/resolver.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/files/search.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input_tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/input.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/keymap.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/noop.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/wayland.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/input/x11.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/media_tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/player.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/media/volume.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/meetings_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/repository.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/meetings/tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/memory/remember.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/desktop.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/hud.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/notify.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/sound.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/notifications/voice.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/reminders_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/repository.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/reminders/tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/clipboard.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/datetime.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/notify.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/system/shell.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/repository.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tasks_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/tasks/tools.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/tools/workspace/register.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio_test.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/voice/audio.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context_builder.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/context.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/defaults.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/loader.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/validator.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/watcher.go": [],
+    "/home/style/Documentos/lenguajes/go/asistente/internal/workspace/workspace_test.go": []
+  },
+  "cachedExports": [],
+  "projectRulesScan": {
+    "rules": [],
+    "hasCustomRules": false
+  },
+  "startupScan": {
+    "cwd": "/home/style/Documentos/lenguajes/go/asistente",
+    "scanRoot": "/home/style/Documentos/lenguajes/go/asistente",
+    "projectRoot": "/home/style/Documentos/lenguajes/go/asistente",
+    "canWarmCaches": true,
+    "sourceFileCount": 200
+  },
+  "languageProfile": {
+    "present": {
+      "jsts": false,
+      "python": false,
+      "go": true,
+      "rust": false,
+      "cxx": false,
+      "cmake": false,
+      "fish": false,
+      "shell": false,
+      "json": false,
+      "markdown": false,
+      "css": false,
+      "yaml": false,
+      "sql": false,
+      "ruby": false,
+      "html": false,
+      "docker": false,
+      "php": false,
+      "powershell": false,
+      "prisma": false,
+      "csharp": false,
+      "fsharp": false,
+      "java": false,
+      "kotlin": false,
+      "swift": false,
+      "dart": false,
+      "lua": false,
+      "zig": false,
+      "haskell": false,
+      "elixir": false,
+      "gleam": false,
+      "ocaml": false,
+      "clojure": false,
+      "terraform": false,
+      "nix": false,
+      "toml": false
+    },
+    "configured": {
+      "go": true
+    },
+    "counts": {
+      "go": 200
+    },
+    "detectedKinds": [
+      "go"
+    ]
+  }
+}

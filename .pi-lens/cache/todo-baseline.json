@@ -1,0 +1,11 @@
+{
+  "items": [
+    {
+      "type": "TODO",
+      "message": "/tareas/pendientes",
+      "file": "internal/workspace/context_builder.go",
+      "line": 83,
+      "column": 44
+    }
+  ]
+}

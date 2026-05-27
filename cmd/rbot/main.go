@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"flag"
 	"rbot/internal/agent"
@@ -18,7 +17,6 @@ import (
 	"rbot/internal/config"
 	"rbot/internal/db"
 	"rbot/internal/files"
-	"rbot/internal/intent"
 	"rbot/internal/llm"
 	llmBootstrap "rbot/internal/llm/bootstrap"
 	"rbot/internal/mcp"
@@ -371,177 +369,10 @@ Cuando el usuario pida "%s":
 			return
 		}
 
-		// Comprobar si se especificó el flag --legacy
-		isLegacy := false
-		for _, arg := range os.Args {
-			if arg == "--legacy" {
-				isLegacy = true
-				break
-			}
-		}
-
-		if !isLegacy {
-			log.Println("[Voice CLI] El daemon RBotd no está activo.")
-			log.Println("[Voice CLI] Si deseas arrancar RBot en modo autónomo tradicional (legacy) desde consola, usa:")
-			log.Println("  rbot voice --legacy")
-			log.Println("[Voice CLI] De lo contrario, inicia el daemon en segundo plano:")
-			log.Println("  rbotd &")
-			return
-		}
-
-		// Modo Legacy Autónomo
-		orchestrator.IsVoiceMode = true
-		log.Println("--------------------------------------------------")
-		log.Printf("Iniciando %s en Modo Conversación de Voz Continua (LEGACY)\n", conf.Agent.Name)
-		log.Printf("Palabras de activación: %v\n", conf.Agent.WakeWords)
-		log.Println("--------------------------------------------------")
-
-		vadThresh := conf.Voice.VadThreshold
-		if vadThresh <= 0 {
-			vadThresh = 550.0
-		}
-		if err := voice.StartVoiceEngine(".", conf.Voice.PiperModel, conf.Voice.WhisperModel, vadThresh); err != nil {
-			log.Fatalf("Error al iniciar motor de voz: %v", err)
-		}
-		defer voice.StopVoiceEngine()
-
-		var history []llm.Message
-		isAwake := false
-		lastInteraction := time.Now()
-		timeoutDuration := 3 * time.Minute // 3 minutos de inactividad antes de desactivarse automáticamente
-
-		_ = voice.Speak("Entorno preparado, señor. Estoy atento a sus instrucciones.")
-
-		for {
-			// Comprobar si expiró por inactividad
-			if isAwake && time.Since(lastInteraction) > timeoutDuration {
-				isAwake = false
-				_ = voice.Speak("Vuelvo al modo de espera por inactividad, señor.")
-			}
-
-			log.Println("[Modo Voz] Escuchando...")
-			texto, err := voice.Listen()
-			if err != nil {
-				log.Printf("Error al escuchar: %v", err)
-				time.Sleep(1 * time.Second)
-				continue
-			}
-
-			texto = strings.TrimSpace(texto)
-			textoLower := strings.ToLower(texto)
-
-			// Ignorar etiquetas de ruido de Whisper (ej. [Música], [Risas], (silencio))
-			if texto == "" || textoLower == "[blank_audio]" ||
-				(strings.HasPrefix(textoLower, "[") && strings.HasSuffix(textoLower, "]")) ||
-				(strings.HasPrefix(textoLower, "(") && strings.HasSuffix(textoLower, ")")) {
-				continue
-			}
-
-			// Filtrar alucinaciones de Whisper basadas en silencio/ruido de fondo
-			if intent.IsWhisperHallucination(texto) {
-				continue
-			}
-
-			// 1. Comprobar palabras de activación (despertar)
-			triggerDetected := ""
-			for _, ww := range conf.Agent.WakeWords {
-				wwLower := strings.ToLower(ww)
-				if strings.Contains(textoLower, wwLower) {
-					triggerDetected = wwLower
-					break
-				}
-			}
-
-			// Si RBot está dormido y no se ha dicho la wake word, ignorar silenciosamente sin imprimir nada
-			if !isAwake && triggerDetected == "" {
-				continue
-			}
-
-			// Loguear solo cuando RBot está despierto o se activa
-			log.Printf("Dijiste: '%s'", texto)
-
-			// 2. Comprobar palabras de desactivación (sueño)
-			isSleepWord := false
-			sleepWords := []string{
-				"eso es todo", "gracias", "vete a dormir", "duérmete",
-				"silencio", "apágate", "desactívate", "nada más",
-				"eso es todo por ahora", "desconéctate",
-			}
-			for _, sw := range sleepWords {
-				if strings.Contains(textoLower, sw) {
-					isSleepWord = true
-					break
-				}
-			}
-
-			if isSleepWord && isAwake {
-				isAwake = false
-				_ = voice.Speak("Entendido señor, vuelvo al modo de espera.")
-				continue
-			}
-
-			cmdLimpio := ""
-			if triggerDetected != "" {
-				isAwake = true
-				lastInteraction = time.Now()
-
-				// Extraer el comando que acompaña a la wake word
-				partes := strings.SplitN(textoLower, triggerDetected, 2)
-				if len(partes) > 1 {
-					cmdLimpio = intent.CleanCommand(partes[1])
-				}
-
-				if cmdLimpio == "" {
-					// El usuario sólo dijo la wake word, saludamos y esperamos comandos directos en la próxima iteración
-					voice.PauseMedia()
-					_ = voice.Speak("Hola señor, ¿en qué le puedo servir?")
-					voice.ResumeMedia()
-					continue
-				}
-			} else if isAwake {
-				// RBot ya está despierto: toda la frase es el comando
-				cmdLimpio = texto
-				lastInteraction = time.Now()
-			}
-
-			// 3. Procesar el comando si hay uno limpio
-			if cmdLimpio != "" {
-				voice.PauseMedia()
-				log.Printf("[Modo Voz] Procesando orden: '%s'", cmdLimpio)
-
-				var printedPrefix bool = false
-				orchestrator.OnTextChunk = func(chunk string) {
-					if !printedPrefix {
-						fmt.Printf("\n%s: ", conf.Agent.Name)
-						printedPrefix = true
-					}
-					fmt.Print(chunk)
-				}
-
-				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-				respuesta, err := orchestrator.Chat(ctx, cmdLimpio, history)
-				cancel()
-
-				if err != nil {
-					log.Printf("Error al procesar chat: %v", err)
-					_ = voice.Speak("Disculpa, tuve un problema interno al procesar esa orden.")
-					voice.ResumeMedia()
-					continue
-				}
-				if orchestrator.OnTextChunk != nil {
-					fmt.Println()
-				}
-				_ = voice.Speak(respuesta)
-				voice.ResumeMedia()
-
-				// Guardar en el historial
-				history = append(history, llm.Message{Role: "user", Content: cmdLimpio})
-				history = append(history, llm.Message{Role: "assistant", Content: respuesta})
-				if len(history) > 10 {
-					history = history[2:]
-				}
-			}
-		}
+		log.Println("[Voice CLI] El daemon RBotd no está activo.")
+		log.Println("[Voice CLI] Inicia el daemon en segundo plano y luego vuelve a usar el CLI de voz.")
+		log.Println("  rbotd &")
+		return
 
 	default:
 		fmt.Printf("Comando desconocido: '%s'\n", cmd)
@@ -561,7 +392,7 @@ func printUsage() {
 	fmt.Println("  skills enable <nombre>      Habilita una habilidad.")
 	fmt.Println("  skills disable <nombre>     Deshabilita una habilidad.")
 	fmt.Println("  mcp list                    Muestra las herramientas expuestas por servidores MCP.")
-	fmt.Println("  voice                       Inicia el agente en escucha continua de voz por micrófono.")
+	fmt.Println("  voice                       Usa el modo de voz del daemon; inicia rbotd primero.")
 }
 
 func listSkills(db *sql.DB) {

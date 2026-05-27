@@ -1,0 +1,13 @@
+[Unit]
+Description=RBot Local HUD
+After=graphical-session.target rbotd.service
+Wants=rbotd.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/rbot-hud
+Restart=on-failure
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+
+[Install]
+WantedBy=default.target

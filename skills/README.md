@@ -76,7 +76,7 @@ Especialmente revisa:
 
 El contenido está escrito para un agente con herramientas equivalentes a:
 
-- `system.run_command`
+- `system.run_command_safe`
 - `files.search_index`
 - `files.read_file`
 - `files.list_directory`

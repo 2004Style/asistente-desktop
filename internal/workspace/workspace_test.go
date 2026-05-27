@@ -124,7 +124,7 @@ func TestValidator_Shortcuts(t *testing.T) {
 			Triggers: []string{"destruye"},
 			Steps: []ShortcutStep{
 				{
-					Intent: "system.run_command",
+					Intent: "system.run_command_safe",
 					Args:   map[string]interface{}{"command": "sudo rm -rf /"},
 				},
 			},

@@ -17,7 +17,7 @@ var ImmutableBlockedCommands = []string{
 // IsImmutablyBlocked comprueba si una acción o comando viola reglas inmutables del sistema.
 func IsImmutablyBlocked(toolName string, args map[string]interface{}) (bool, string) {
 	// Verificar si se intenta ejecutar un comando de shell crítico/destructivo
-	if toolName == "system.run_command" || toolName == "system.run_command_safe" {
+	if toolName == "system.run_command_safe" {
 		cmd, _ := args["command"].(string)
 		if cmd == "" {
 			cmd, _ = args["CommandLine"].(string)

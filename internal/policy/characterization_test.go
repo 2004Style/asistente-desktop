@@ -38,19 +38,15 @@ func TestDirectAndExecutorPathAgreement(t *testing.T) {
 	p := &testProvider{name: "test", model: "m"}
 	o := agent.NewOrchestrator(sqliteDB, p, nil, []string{"~/.ssh"}, []string{"."}, "TestBot", nil)
 
-	// Characterization: compare executor policy vs legacy security helper for the same tool/args
+	// Characterization: compare executor policy vs security helper for the same tool/args
 	toolHandler, ok := o.Registry.Get("system.run_command_safe")
 	if !ok {
-		// fallback to system.run_command
-		toolHandler, ok = o.Registry.Get("system.run_command")
-		if !ok {
-			t.Fatalf("tool not registered: system.run_command_safe nor system.run_command")
-		}
+		t.Fatalf("tool not registered: system.run_command_safe")
 	}
 	args := map[string]interface{}{"path": "~/.ssh/id_rsa"}
 	decision := o.Executor.Policy.EvaluateTool(context.Background(), toolHandler, args)
 
-	// Legacy security helper - pass the path as targetPath
+	// Security helper - pass the path as targetPath
 	allowed2, requiresConfirm2, _ := security.ValidateToolAction(o.DB, toolHandler.Name(), "~/.ssh/id_rsa", o.BlockedPaths)
 
 	// They should agree on allowed/confirm for path-based checks

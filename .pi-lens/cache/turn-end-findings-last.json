@@ -1,4 +1,6 @@
 {
-  "signature": "internal/policy/characterization_test.go::📐 Cascade errors in 1 neighbor file(s) — fix before finishing turn:\n<diagnostics file=\"internal/security/permissions.go\" reason=\"fallback\">\n  line 68, col 20 rule=cascade:WrongAssignCount: assignment mismatch: 2 variables but strings.ToLower returns 1 value\n</diagnostics>\n\n🧪 Likely tests for affected neighbors:\n  internal/security/permissions_test.go (go)",
-  "sessionId": "lens-mpmdf385-755b202e"
+  "signature": "cmd/rbotctl/main.go::🕸️ Impact cascade from edited file:\nChanged symbols: main, printUsage\n📐 Cascade errors in 1 neighbor file(s) — fix before finishing turn:\n<diagnostics file=\"go.mod\" reason=\"fallback\">\n  line 1, col 1 rule=cascade:unknown: github.com/niemeyer/pretty is not in your go.mod file\n  line 1, col 1 rule=cascade:unknown: gopkg.in/check.v1 is not in your go.mod file\n</diagnostics>",
+  "sessionId": "lens-mpo4nkfc-2fb87439",
+  "projectSeqStart": 36,
+  "projectSeqEnd": 37
 }

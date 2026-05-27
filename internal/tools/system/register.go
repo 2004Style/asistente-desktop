@@ -18,8 +18,5 @@ func RegisterTools(reg *executor.Registry) error {
 	if err := reg.Register(NewClipboardCopyTool()); err != nil {
 		return err
 	}
-	if err := reg.Register(NewRunCommandTool()); err != nil {
-		return err
-	}
 	return nil
 }

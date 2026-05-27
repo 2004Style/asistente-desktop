@@ -6,9 +6,9 @@ Antes de solicitar review, usá esta checklist. Copiala en el cuerpo del PR o pe
 - [ ] Coverage: las unidades nuevas tienen tests. No exigir coverage mínimo por ahora, pero evitar regresiones.
 - [ ] Security: No hay claves o tokens guardados en texto plano en el repo ni en logs.
 - [ ] Secrets: Usar `env:VAR` o `keyring:service/name` para referencias de secretos.
-- [ ] Backwards compatibility: Revisar CLI existentes (`rbot`, `rbotctl`) y comportamientos legacy.
+- [ ] Backwards compatibility: Revisar CLI existentes (`rbot`, `rbotctl`) y comportamientos antiguos que todavía sigan documentados.
 - [ ] Docs: Actualizar README.md y docs/architecture.md si el cambio es de arquitectura o config.
-- [ ] Migration notes: Si elimina paquetes o cambia DB schema, incluir nota de migración (docs/migration_*.md).
+- [ ] Migration notes: Si elimina paquetes o cambia DB schema, incluir nota de migración en el PR o en docs de arquitectura.
 - [ ] Review workload: si PR > 400 líneas, dividir en PRs más pequeños por área (config+onboarding vs llm manager vs orchestrator refactor).
 - [ ] Release/packaging: revisar scripts de build y systemd unit si aplica.
 

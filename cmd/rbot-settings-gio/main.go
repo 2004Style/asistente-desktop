@@ -185,7 +185,9 @@ func loop(w *app.Window) error {
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.Overline(th, "NEURAL CONTROL / DESKTOP SESSION").Layout(gtx)
 						}),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.H4(th, "RBot Settings").Layout(gtx) }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.H4(th, "✦ RBot Settings").Layout(gtx) }),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return liveBadge(gtx, th, phase) }),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return material.Body1(th, "Neon control deck for local provider switching").Layout(gtx)
 						}),
@@ -201,10 +203,10 @@ func loop(w *app.Window) error {
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return material.Overline(th, "Quick providers").Layout(gtx)
+							return material.Overline(th, "◆ Quick providers").Layout(gtx)
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, providerButtonRow(gtx, th, providerKeys, providerClicks, &providerEditor, &modelEditor, &secretEditor, providersConf)...)
+							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, providerButtonRow(th, providerKeys, providerClicks, &providerEditor, &modelEditor, &secretEditor, providersConf)...)
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -219,13 +221,15 @@ func loop(w *app.Window) error {
 						layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-								layout.Rigid(material.Button(th, &testBtn, "Test connection").Layout),
+								layout.Rigid(material.Button(th, &testBtn, "⟲ Test connection").Layout),
 								layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-								layout.Rigid(material.Button(th, &applyBtn, "Apply").Layout),
+								layout.Rigid(material.Button(th, &applyBtn, "➜ Apply changes").Layout),
 							)
 						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-						layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Body2(th, state.snapshot()).Layout(gtx) }),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return material.Caption(th, "⟡ "+state.snapshot()).Layout(gtx)
+						}),
 						layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return neonStatCard(gtx, th, "Mode", "Local-first", accentColor(phase+0.12))
@@ -270,7 +274,7 @@ func resolveConfigPath() string {
 	return configPath
 }
 
-func providerButtonRow(gtx layout.Context, th *material.Theme, keys []string, clicks map[string]*widget.Clickable, providerEditor, modelEditor, secretEditor *widget.Editor, providersConf *config.ProvidersConfig) []layout.FlexChild {
+func providerButtonRow(th *material.Theme, keys []string, clicks map[string]*widget.Clickable, providerEditor, modelEditor, secretEditor *widget.Editor, providersConf *config.ProvidersConfig) []layout.FlexChild {
 	children := make([]layout.FlexChild, 0, len(keys)*2)
 	selected := strings.TrimSpace(providerEditor.Text())
 	for i, name := range keys {
@@ -362,4 +366,15 @@ func (s *uiState) snapshot() string {
 		return "Working..."
 	}
 	return s.status
+}
+
+func liveBadge(gtx layout.Context, th *material.Theme, phase float64) layout.Dimensions {
+	accent := accentColor(phase + 0.2)
+	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return colorBlock(gtx, accent, image.Pt(10, 10)) }),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return material.Caption(th, "LIVE / micro-animated").Layout(gtx)
+		}),
+	)
 }

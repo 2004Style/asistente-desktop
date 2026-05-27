@@ -69,12 +69,6 @@ func (r *Registry) List() []ToolHandler {
 	return out
 }
 
-// GetOllamaTools mantiene compatibilidad con código existente, delegando a GetLLMTools.
-// Deprecated: usar GetLLMTools en su lugar.
-func (r *Registry) GetOllamaTools() []llm.Tool {
-	return r.GetLLMTools()
-}
-
 // GetLLMTools convierte las herramientas registradas a definiciones compatibles con LLM Tool Calling.
 func (r *Registry) GetLLMTools() []llm.Tool {
 	r.mu.RLock()
@@ -121,4 +115,3 @@ func (r *Registry) GetLLMTools() []llm.Tool {
 	}
 	return out
 }
-

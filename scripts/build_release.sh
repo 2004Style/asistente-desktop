@@ -1,83 +1,95 @@
 #!/usr/bin/env bash
-
-set -e
+set -euo pipefail
 
 # ==============================================================================
 # build_release.sh
-# Empaqueta RBot y sus dependencias (skills, configuración MCP) para distribución.
-# Genera artefactos precompilados (.tar.gz) listos para subir a GitHub Releases.
+# Empaqueta RBot y sus dependencias para distribución.
+# Genera artefactos precompilados (.tar.gz) listos para publicar.
 # ==============================================================================
 
 APP_NAME="rbot"
-VERSION="${1:-1.0.0}" # Puede recibir la versión como argumento, por defecto 1.0.0
+VERSION="${1:-${VERSION:-1.0.0}}"
 BUILD_DIR="build"
 OUTPUT_DIR="release"
+BUILD_HUD="${BUILD_HUD:-0}"
 
-# Colores
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-echo -e "${BLUE}====================================================${NC}"
-echo -e "${BLUE}       Creando Release de RBot v${VERSION}          ${NC}"
-echo -e "${BLUE}====================================================${NC}"
+printf '%b\n' "${BLUE}====================================================${NC}"
+printf '%b\n' "${BLUE}       Creando Release de RBot v${VERSION}          ${NC}"
+printf '%b\n' "${BLUE}====================================================${NC}"
 
-# Limpiar directorios previos
 rm -rf "$BUILD_DIR" "$OUTPUT_DIR"
 mkdir -p "$BUILD_DIR" "$OUTPUT_DIR"
 
-# Arquitecturas a soportar
+build_binary() {
+	local target_dir="$1"
+	local binary="$2"
+	shift 2
+	local pkg="$1"
+	shift || true
+	if [ "$#" -gt 0 ]; then
+		go build "$@" -ldflags="-w -s" -o "${target_dir}/bin/${binary}" "$pkg"
+	else
+		go build -ldflags="-w -s" -o "${target_dir}/bin/${binary}" "$pkg"
+	fi
+}
+
 ARCHITECTURES=("amd64" "arm64")
+BASE_BINARIES=("rbot" "rbotd" "rbotctl" "rbot-settings-gio")
 
 for ARCH in "${ARCHITECTURES[@]}"; do
-    echo -e "\n${YELLOW}[1/4] Compilando para linux/${ARCH}...${NC}"
-    
-    TARGET_DIR="${BUILD_DIR}/${APP_NAME}-linux-${ARCH}"
-    mkdir -p "${TARGET_DIR}/bin"
-    mkdir -p "${TARGET_DIR}/share/rbot"
-    mkdir -p "${TARGET_DIR}/config/rbot"
+	printf '\n%b\n' "${YELLOW}[1/4] Compilando para linux/${ARCH}...${NC}"
 
-    # Compilar los binarios
-    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbot" cmd/rbot/main.go
-    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbotd" cmd/rbotd/main.go
-    GOOS=linux GOARCH=${ARCH} go build -ldflags="-w -s" -o "${TARGET_DIR}/bin/rbotctl" cmd/rbotctl/main.go
-    
-    echo -e "${GREEN}Binarios compilados exitosamente (rbot, rbotd, rbotctl).${NC}"
+	TARGET_DIR="${BUILD_DIR}/${APP_NAME}-linux-${ARCH}"
+	mkdir -p "${TARGET_DIR}/bin"
+	mkdir -p "${TARGET_DIR}/share/rbot"
+	mkdir -p "${TARGET_DIR}/config/rbot"
+	mkdir -p "${TARGET_DIR}/systemd"
 
-    echo -e "${YELLOW}[2/4] Copiando recursos del proyecto...${NC}"
-    # Copiar skills
-    if [ -d "skills" ]; then
-        cp -r skills "${TARGET_DIR}/share/rbot/"
-    fi
-    
-    # Copiar configuración predeterminada (rbot.yaml y mcp_config.json)
-    mkdir -p "${TARGET_DIR}/config/rbot"
-    
-    if [ -f "config/rbot.yaml" ]; then
-        cp config/rbot.yaml "${TARGET_DIR}/config/rbot/"
-    fi
-    
-    if [ -f "mcp/mcp_config.json" ]; then
-        cp mcp/mcp_config.json "${TARGET_DIR}/config/rbot/"
-    fi
-    
-    # Copiar documentación útil si el usuario quiere leerla
-    cp README.md "${TARGET_DIR}/"
-    cp docs/interferencias.md "${TARGET_DIR}/" 2>/dev/null || true
+	for binary in "${BASE_BINARIES[@]}"; do
+		build_binary "$TARGET_DIR" "$binary" "./cmd/${binary}"
+	done
 
-    echo -e "${YELLOW}[3/4] Empaquetando en ${APP_NAME}-linux-${ARCH}.tar.gz...${NC}"
-    cd "${BUILD_DIR}"
-    tar -czf "../${OUTPUT_DIR}/${APP_NAME}-linux-${ARCH}.tar.gz" "${APP_NAME}-linux-${ARCH}"
-    cd ..
-    
-    echo -e "${GREEN}Artefacto linux-${ARCH} creado.${NC}"
+	if [ "$BUILD_HUD" = "1" ]; then
+		build_binary "$TARGET_DIR" "rbot-hud" "./cmd/rbot-hud" -tags hud
+	fi
+
+	printf '%b\n' "${GREEN}Binarios compilados exitosamente.${NC}"
+
+	printf '%b\n' "${YELLOW}[2/4] Copiando recursos del proyecto...${NC}"
+	if [ -d "skills" ]; then
+		cp -r skills "${TARGET_DIR}/share/rbot/"
+	fi
+
+	if [ -f "config/rbot.yaml" ]; then
+		cp config/rbot.yaml "${TARGET_DIR}/config/rbot/"
+	fi
+
+	if [ -f "mcp/mcp_config.json" ]; then
+		cp mcp/mcp_config.json "${TARGET_DIR}/config/rbot/"
+	fi
+
+	if [ -f "README.md" ]; then
+		cp README.md "${TARGET_DIR}/"
+	fi
+
+	if [ -d "systemd" ]; then
+		cp systemd/*.service "${TARGET_DIR}/systemd/" 2>/dev/null || true
+	fi
+
+	printf '%b\n' "${YELLOW}[3/4] Empaquetando en ${APP_NAME}-linux-${ARCH}.tar.gz...${NC}"
+	(cd "$BUILD_DIR" && tar -czf "../${OUTPUT_DIR}/${APP_NAME}-linux-${ARCH}.tar.gz" "${APP_NAME}-linux-${ARCH}")
+	printf '%b\n' "${GREEN}Artefacto linux-${ARCH} creado.${NC}"
 done
 
-echo -e "\n${YELLOW}[4/4] Limpiando...${NC}"
+printf '\n%b\n' "${YELLOW}[4/4] Limpiando...${NC}"
 rm -rf "$BUILD_DIR"
 
-echo -e "\n${BLUE}====================================================${NC}"
-echo -e "${GREEN} ¡Releases creados en la carpeta 'release/'!         ${NC}"
-echo -e "${BLUE}====================================================${NC}"
+printf '\n%b\n' "${BLUE}====================================================${NC}"
+printf '%b\n' "${GREEN} ¡Releases creados en la carpeta 'release/'!         ${NC}"
+printf '%b\n' "${BLUE}====================================================${NC}"
 ls -lh release/

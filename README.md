@@ -13,6 +13,7 @@ git clone https://github.com/2004Style/asistente-desktop.git
 cd asistente-desktop
 # Instalar Go >= 1.20 (según go.mod)
 go test ./...           # correr la suite de tests local
+./scripts/setup_dev.sh  # preparar binarios y enlaces de desarrollo
 ```
 
 2) Onboarding (CLI):
@@ -66,6 +67,12 @@ Seguridad y secretos
 HUD y build tags
 
 - El HUD GTK está aislado con el build tag `hud`. La suite de CI y `go test ./...` corren un stub por defecto.
+- Para preparar el entorno de desarrollo completo y compilar el HUD nativo cuando tengas GTK dev libs instaladas:
+
+```bash
+BUILD_HUD=1 ./scripts/setup_dev.sh
+BUILD_HUD=1 ./scripts/dev.sh
+```
 - Para validar/compilar el HUD en entornos con GTK dev libs instaladas:
 
 ```bash
@@ -81,7 +88,7 @@ CI
 
 Dónde están las cosas (mapa rápido)
 
-- cmd/ - binarios: rbot, rbotd, rbotctl, rbot-hud (opt-in)
+- cmd/ - binarios: rbot, rbotd, rbotctl, rbot-settings-gio, rbot-hud (opt-in)
 - internal/llm - provider contract, providers (ollama/openai/compatible), registry, manager
 - internal/onboarding - onboarding wizard
 - internal/secrets - secret resolvers (env, keyring)
@@ -92,6 +99,8 @@ Desktop GUI (Gio)
 
 Se añadió una ventana de escritorio futurista usando Gio en `cmd/rbot-settings-gio` para configurar proveedor, modelo y secret-ref desde una UI inmediata y más flexible visualmente.
 
+La CLI de configuración quedó fusionada en `rbotctl`; el alias más cómodo es `rbotctl settings ...`, aunque también podés usar `rbotctl providers ...` y `rbotctl models ...` directamente.
+
 Requisitos (Linux):
 - Go >= 1.20
 - Dependencias del sistema para Gio/GLFW/OpenGL (varía por distro). En Debian/Ubuntu típicamente:
@@ -100,30 +109,18 @@ Requisitos (Linux):
 
 Cómo ejecutar (dev):
 
-1) Iniciá el daemon en otra terminal (recomendado):
-
 ```bash
-# desde el repo, o si ya compilaste:
-./bin/rbotd &
-```
+# prepara todo y ejecuta el runtime + GUI cuando haya sesión gráfica
+./scripts/dev.sh
 
-2) Ejecutá el GUI (binario preferido) o con go run:
-
-```bash
-# si compilaste:
-./bin/rbot-settings-gio
-# o en desarrollo:
-go run cmd/rbot-settings-gio
+# modo full: también levanta el HUD nativo si fue compilado
+BUILD_HUD=1 ./scripts/dev.sh
 ```
 
 Notas:
 - La UI usa un tema oscuro con acentos neon.
 - Los botones de provider cargan rápidamente el modelo y el secret-ref desde `config/providers.yaml`.
-- El binario `cmd/rbot-settings-ui` quedó como compat/stub para no romper la suite, pero la ruta principal es Gio.
-
-Smoke script
-
-Hay un script auxiliar `scripts/smoke_gui.sh` que intenta arrancar `rbotd` (si existe en ./bin) y lanzar la UI Gio en foreground. Es útil para pruebas manuales en desktop.
+- El runner canónico de desarrollo es `scripts/dev.sh`.
 
 Contribuir
 

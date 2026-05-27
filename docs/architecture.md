@@ -6,12 +6,12 @@ Este documento resume las decisiones arquitectónicas y los cambios aplicados en
 - Se consolidó la lógica de proveedores en `internal/llm/`:
   - `internal/llm/provider.go` (contrato Provider)
   - `internal/llm/ollama`, `internal/llm/openai`, `internal/llm/compatible`
-  - `internal/llm/registry.go` y `internal/llm/manager.go` para registro, fallback y persistencia ligera
-- Se eliminó el paquete legacy `internal/ollama/`. Todos los llamadores usan ahora `internal/llm`.
+  - `internal/llm/registry.go` y `internal/llm/manager.go` para registro, selección del activo y persistencia ligera
+- Se eliminó el paquete `internal/ollama/`. Todos los llamadores usan ahora `internal/llm`.
 
 ## Configuración y bootstrap
 - Nuevo archivo `config/providers.yaml` con estructura `ProvidersConfig` (enabled, type, auth_mode, base_url, secret_ref, model).
-- `internal/llm/bootstrap` construye el `Registry` a partir de `providers.yaml` y el `config.rbot.yaml` como fallback.
+- `internal/llm/bootstrap` construye el `Registry` a partir de `providers.yaml`. Si no hay proveedores habilitados, devuelve error explícito.
 - El daemon (`rbotd`) y el CLI (`rbot`) consumen el registry construido por el bootstrap.
 
 ## Onboarding (rbot setup / onboard)
@@ -37,7 +37,7 @@ Este documento resume las decisiones arquitectónicas y los cambios aplicados en
 
 ## Migración y limpieza
 - `internal/ollama` fue eliminado tras migrar consumidores a `internal/llm/ollama`.
-- Si hay integraciones externas que usen el paquete legacy (poco probable), revisar import paths.
+- Si hay integraciones externas que usen el paquete eliminado (poco probable), revisar import paths.
 
 ## Tests y CI
 - CI (`.github/workflows/ci.yml`) corre `go test ./...` — gate principal.

@@ -18,8 +18,8 @@ asistente/
 │   ├── rbot-hud/
 │   │   └── main.go
 │   │
-│   └── rbot-settings/
-│       └── main.go                  # Futuro panel para cambiar provider/modelo/configuración
+│   └── rbot-settings-gio/
+│       └── main.go                  # Panel gráfico de configuración; la CLI quedó fusionada en rbotctl
 │
 ├── internal/
 │   ├── agent/
@@ -142,7 +142,6 @@ asistente/
 │   ├── tools/
 │   │   ├── system/
 │   │   │   ├── shell.go
-│   │   │   ├── legacy_shell.go
 │   │   │   ├── process.go
 │   │   │   ├── datetime.go
 │   │   │   ├── clipboard.go
@@ -473,7 +472,7 @@ Los cambios principales serían:
 | -------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Eliminar o migrar `internal/ollama/`                           | Ya tienes `internal/llm/ollama/`; mantener ambos duplica responsabilidades.           |
 | Agregar `internal/secrets/`                                    | Necesario para API keys de OpenAI/Codex/Ollama remoto sin guardarlas mal.             |
-| Agregar `cmd/rbot-settings/`                                   | Para la interfaz donde cambiar proveedor, modelo, API key, base URL, etc.             |
+| Fusionar la CLI de configuración en `rbotctl`                 | Para cambiar proveedor/modelo/API key/base URL sin mantener un binario separado.       |
 | Agregar `config/providers.yaml`                                | Separar configuración de proveedores/modelos de la config general.                    |
 | Agregar `internal/tools/providers/` y `internal/tools/models/` | Para `providers.list`, `models.list`, `models.switch`, etc.                           |
 | Agregar `workspace/SHORTCUTS.md`                               | En tu estructura objetivo anterior faltaba; es clave para macros como “modo trabajo”. |
@@ -569,7 +568,7 @@ internal/secrets/
 ├── env.go
 └── keyring.go
 
-cmd/rbot-settings/
+cmd/rbotctl settings alias /
 └── main.go
 
 config/
@@ -620,7 +619,7 @@ Prioridad de cambios:
 2. Agregar internal/secrets.
 3. Agregar tools/providers y tools/models.
 4. Agregar config/providers.yaml.
-5. Agregar cmd/rbot-settings.
+5. Fusionar la CLI de configuración en cmd/rbotctl.
 6. Agregar workspace/SHORTCUTS.md.
 7. Agregar internal/workspace/shortcuts.go.
 8. Agregar systemd/rbot-hud.service.

@@ -92,7 +92,7 @@ func TestWorkspacePolicyAndImmutableRules(t *testing.T) {
 	engine := policy.NewEngine([]string{}, true)
 
 	// Test case: Immutable rules block "rm -rf /" command
-	cmdTool := &dummyTool{name: "system.run_command", riskLevel: "high"}
+	cmdTool := &dummyTool{name: "system.run_command_safe", riskLevel: "high"}
 	decision := engine.EvaluateTool(context.Background(), cmdTool, map[string]interface{}{"CommandLine": "rm -rf /"})
 	if decision.Allowed {
 		t.Error("Expected rm -rf / to be blocked by immutable rules")
@@ -107,7 +107,7 @@ func TestWorkspacePolicyAndImmutableRules(t *testing.T) {
 - Bloquear clics de mouse automáticos.`
 	engine.SetWorkspacePolicies(policyContent)
 
-	// 1. Tool matching "comando shell" (run_command) should now require confirmation due to local policy
+	// 1. Tool matching "comando shell" (run_command_safe) should now require confirmation due to local policy
 	decision = engine.EvaluateTool(context.Background(), cmdTool, map[string]interface{}{"CommandLine": "ls -la"})
 	if !decision.Allowed {
 		t.Error("Expected command to be allowed (but require confirmation)")

@@ -162,16 +162,5 @@ func (e *Executor) logAction(planID, userInput, toolName string, args map[string
 	query := `INSERT INTO action_log (plan_id, user_input, tool_name, arguments_json, risk_level, status, error, started_at, finished_at) 
 	          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	_, err := e.DB.Exec(query, planID, userInput, toolName, string(argsJSON), risk, status, errorStr, startStr, endStr)
-	if err != nil {
-		// Fallback para mantener compatibilidad antes de ejecutar la migración física de base de datos
-		legacyQuery := `INSERT INTO action_log (user_input, tool_name, tool_source, arguments_json, result_json, success, error, required_confirmation, duration_ms) 
-		                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-		successVal := 0
-		if status == "success" {
-			successVal = 1
-		}
-		durationMs := end.Sub(start).Milliseconds()
-		_, _ = e.DB.Exec(legacyQuery, userInput, toolName, "internal", string(argsJSON), errorStr, successVal, errorStr, 0, durationMs)
-	}
+	_, _ = e.DB.Exec(query, planID, userInput, toolName, string(argsJSON), risk, status, errorStr, startStr, endStr)
 }

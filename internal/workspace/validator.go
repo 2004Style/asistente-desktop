@@ -47,9 +47,9 @@ func (v *Validator) ValidateShortcuts(shortcuts []Shortcut) error {
 			if step.Intent == "" {
 				return fmt.Errorf("macro '%s' inválida: el paso de acción no tiene intención declarada", s.Name)
 			}
-			// Evitar intents destructivos con argumentos maliciosos en shortcuts
+			// Evitar intents de shell destructivos con argumentos maliciosos en shortcuts
 			intentLower := strings.ToLower(step.Intent)
-			if strings.Contains(intentLower, "delete") || strings.Contains(intentLower, "remove") || strings.Contains(intentLower, "shell") || strings.Contains(intentLower, "run_command") {
+			if strings.Contains(intentLower, "delete") || strings.Contains(intentLower, "remove") || strings.Contains(intentLower, "shell") || strings.Contains(intentLower, "run_command_safe") {
 				for _, val := range step.Args {
 					valStr, ok := val.(string)
 					if ok {

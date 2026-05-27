@@ -195,7 +195,7 @@ Esta es la fase inicial. Su meta es transformar RBot de un ejecutable centrado e
 - [ ] Definir `rbot.sock` y `events.sock` en `XDG_RUNTIME_DIR`.
 - [ ] Añadir lock de instancia única.
 - [ ] Crear servicio `systemd` de usuario para `rbotd`.
-- [ ] Mantener comandos legacy mínimos mientras dura la transición.
+- [ ] Mantener comandos mínimos mientras dura la transición.
 - [ ] Crear `rbot setup` / `rbot onboard`.
 - [ ] Permitir elegir proveedor durante la instalación.
 - [ ] Guardar `active_provider`, `active_model` y auth básica en config.

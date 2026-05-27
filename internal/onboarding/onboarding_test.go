@@ -29,7 +29,7 @@ func TestRunOpenAIOnboardingWritesProviderFiles(t *testing.T) {
 		t.Fatalf("expected openai active provider, got %q", conf.Providers.ActiveProvider)
 	}
 	if conf.Model.Provider != "openai" {
-		t.Fatalf("expected legacy model provider openai, got %q", conf.Model.Provider)
+		t.Fatalf("expected model provider openai, got %q", conf.Model.Provider)
 	}
 	if conf.Providers.ConfigFile != filepath.Join(tempDir, "providers.yaml") {
 		t.Fatalf("expected providers file in temp dir, got %q", conf.Providers.ConfigFile)

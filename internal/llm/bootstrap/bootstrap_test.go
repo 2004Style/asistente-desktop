@@ -69,3 +69,15 @@ func TestBuildRegistryActiveModelOverride(t *testing.T) {
 		t.Fatalf("expected active model override, got %q", p.ModelID())
 	}
 }
+
+func TestBuildRegistryRequiresEnabledProviders(t *testing.T) {
+	providers := config.DefaultProvidersConfig()
+	for name, entry := range providers.Providers {
+		entry.Enabled = false
+		providers.Providers[name] = entry
+	}
+
+	if _, err := BuildRegistry(config.DefaultConfig(), providers, secrets.NewManager()); err == nil {
+		t.Fatal("expected BuildRegistry to fail when no providers are enabled")
+	}
+}
