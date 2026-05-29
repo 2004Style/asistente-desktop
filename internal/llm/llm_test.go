@@ -3,6 +3,8 @@ package llm
 import (
 	"context"
 	"testing"
+
+	"rbot/internal/db"
 )
 
 // mockProvider implements Provider for testing
@@ -236,5 +238,74 @@ func TestManagerListAllModels(t *testing.T) {
 	}
 	if len(all) != 2 {
 		t.Errorf("Expected models from 2 providers, got %d", len(all))
+	}
+}
+
+
+type countingProvider struct {
+	name  string
+	model string
+	calls int
+}
+
+func (m *countingProvider) Name() string       { return m.name }
+func (m *countingProvider) ModelID() string    { return m.model }
+func (m *countingProvider) SetModel(id string) { m.model = id }
+func (m *countingProvider) Chat(ctx context.Context, messages []Message, tools []Tool, opts ChatOptions) (*Message, error) {
+	return &Message{Role: "assistant", Content: "ok"}, nil
+}
+func (m *countingProvider) ListModels(ctx context.Context) ([]ModelInfo, error) {
+	m.calls++
+	return []ModelInfo{{ID: m.model, Name: m.model, Provider: m.name}}, nil
+}
+func (m *countingProvider) Ping(ctx context.Context) error { return nil }
+
+func TestManagerSetActiveSelectionPersistsProfile(t *testing.T) {
+	sqliteDB, err := db.InitDB(":memory:")
+	if err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	defer sqliteDB.Close()
+
+	reg := NewRegistry()
+	_ = reg.Register(&mockProvider{name: "ollama", model: "qwen2.5:7b"})
+
+	mgr := NewManager(sqliteDB, reg)
+	if err := mgr.SetActiveSelection("ollama", "qwen2.5:7b", "local_fast"); err != nil {
+		t.Fatalf("SetActiveSelection failed: %v", err)
+	}
+
+	var profile, model string
+	if err := sqliteDB.QueryRow(`SELECT active_profile, model_id FROM llm_providers WHERE provider_name = ? AND is_active = 1 LIMIT 1`, "ollama").Scan(&profile, &model); err != nil {
+		t.Fatalf("query active selection failed: %v", err)
+	}
+	if profile != "local_fast" {
+		t.Fatalf("expected active_profile local_fast, got %q", profile)
+	}
+	if model != "qwen2.5:7b" {
+		t.Fatalf("expected model persisted, got %q", model)
+	}
+}
+
+func TestManagerListModelsUsesCache(t *testing.T) {
+	sqliteDB, err := db.InitDB(":memory:")
+	if err != nil {
+		t.Fatalf("InitDB failed: %v", err)
+	}
+	defer sqliteDB.Close()
+
+	reg := NewRegistry()
+	p := &countingProvider{name: "cache-provider", model: "m1"}
+	_ = reg.Register(p)
+
+	mgr := NewManager(sqliteDB, reg)
+	if _, err := mgr.ListModelsForProvider(context.Background(), "cache-provider"); err != nil {
+		t.Fatalf("first discovery failed: %v", err)
+	}
+	if _, err := mgr.ListModelsForProvider(context.Background(), "cache-provider"); err != nil {
+		t.Fatalf("second discovery failed: %v", err)
+	}
+	if p.calls != 1 {
+		t.Fatalf("expected cache to avoid second discovery call, got %d calls", p.calls)
 	}
 }

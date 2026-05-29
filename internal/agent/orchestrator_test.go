@@ -34,7 +34,7 @@ func TestOrchestratorBuildSystemPrompt(t *testing.T) {
 	_, _ = database.Exec("INSERT INTO app_launchers (name, display_name, executable, command, is_available) VALUES ('firefox', 'Firefox Web Browser', 'firefox', 'firefox', 1)")
 	_, _ = database.Exec("INSERT INTO skills (name, description, path, skill_md_path, enabled) VALUES ('music-skill', 'Reproducir musica', 'path', 'path_md', 1)")
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+	o := NewOrchestrator(database, nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 	prompt := o.BuildSystemPrompt([]string{"Contexto especial"}, "hola")
 
 	if !strings.Contains(prompt, "Juan") {
@@ -49,7 +49,7 @@ func TestOrchestratorBuildSystemPrompt(t *testing.T) {
 }
 
 func TestOrchestratorGetAvailableTools(t *testing.T) {
-	o := NewOrchestrator(nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+	o := NewOrchestrator(nil, nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 	tools := o.GetAvailableTools(context.Background())
 
 	foundOpenApp := false
@@ -88,7 +88,7 @@ func TestOrchestratorDetectDirectIntents(t *testing.T) {
 	// Insert app firefox to db so findBestAppMatch works
 	_, _ = database.Exec("INSERT INTO app_launchers (name, display_name, executable, command, is_available) VALUES ('firefox', 'Firefox Web Browser', 'firefox', 'firefox', 1)")
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+	o := NewOrchestrator(database, nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 
 	home, _ := os.UserHomeDir()
 	expectedDescargasPath := "descargas"
@@ -129,6 +129,14 @@ func TestOrchestratorDetectDirectIntents(t *testing.T) {
 			input:             "lee el archivo notas.txt",
 			shouldReturnEmpty: true, // Should bypass and go to LLM
 		},
+		{
+			input:             "es la programación",
+			shouldReturnEmpty: true,
+		},
+		{
+			input:             "qué es la programación",
+			shouldReturnEmpty: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -168,7 +176,7 @@ func TestOrchestratorExecuteTool(t *testing.T) {
 	}
 	defer database.Close()
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, []string{tempDir}, "RBot", nil)
+	o := NewOrchestrator(database, nil, nil, mcp.NewServerManager(), nil, []string{tempDir}, "RBot", nil)
 
 	// 1. Test memory.remember
 	args := map[string]interface{}{
@@ -328,9 +336,13 @@ func TestOrchestratorChatEndToEnd(t *testing.T) {
 	defer server.Close()
 
 	ollamaP := ollamaProvider.NewProvider(server.URL, "llama3", "")
+	reg := llm.NewRegistry()
+	_ = reg.Register(ollamaP)
+	llmManager := llm.NewManager(database, reg)
+	_ = llmManager.SetActive("ollama")
 	mcpManager := mcp.NewServerManager()
 	
-	o := NewOrchestrator(database, ollamaP, mcpManager, nil, nil, "RBot", nil)
+	o := NewOrchestrator(database, llmManager, nil, mcpManager, nil, nil, "RBot", nil)
 	
 	ctx := context.Background()
 	reply, err := o.Chat(ctx, "recuerda que mi color favorito es el azul", nil)
@@ -371,7 +383,7 @@ func TestOrchestratorDirectMediaIntents(t *testing.T) {
 	}
 	defer database.Close()
 
-	o := NewOrchestrator(database, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
+	o := NewOrchestrator(database, nil, nil, mcp.NewServerManager(), nil, nil, "RBot", nil)
 
 	tests := []struct {
 		input            string

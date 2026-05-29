@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -29,11 +31,13 @@ import (
 	workspaceTools "rbot/internal/tools/workspace"
 	"rbot/internal/voice"
 	"rbot/internal/workspace"
+	"os/exec"
 )
 
 // Daemon representa el proceso principal en segundo plano
 type Daemon struct {
 	Config             *config.Config
+	ProvidersConf      *config.ProvidersConfig
 	DB                 *sql.DB
 	LLMManager         *llm.Manager
 	MCPManager         *mcp.ServerManager
@@ -49,6 +53,7 @@ type Daemon struct {
 	voiceCtx     context.Context
 	voiceCancel  context.CancelFunc
 	isVoiceAwake bool
+	voskCmd      *exec.Cmd
 }
 
 type DaemonEventPublisher struct {
@@ -92,14 +97,39 @@ func NewDaemon(conf *config.Config, database *sql.DB) *Daemon {
 			log.Printf("[Daemon] Error estableciendo proveedor por defecto '%s': %v", bootstrapResult.Active, err)
 		}
 	}
+	if bootstrapResult.ActiveProfile != "" || bootstrapResult.ActiveModel != "" || bootstrapResult.ActiveAuthMode != "" {
+		log.Printf("[Daemon] Selección activa LLM: profile=%s provider=%s model=%s auth=%s", bootstrapResult.ActiveProfile, bootstrapResult.Active, bootstrapResult.ActiveModel, bootstrapResult.ActiveAuthMode)
+	}
 
 	// Configurar parámetros de voz de whisper
 	voice.WhisperThreads = conf.Voice.WhisperThreads
 	voice.WhisperFlags = conf.Voice.WhisperFlags
 
+	// Configurar callback de cambio de selección para mantener providersConf y YAML al día
+	llmManager.OnActiveSelectionChanged = func(providerName, modelID, profileName string) {
+		providersConf.ActiveProvider = providerName
+		providersConf.ActiveModel = modelID
+		providersConf.ActiveProfile = profileName
+		if profileName != "" {
+			if profile, ok := providersConf.Profiles[profileName]; ok {
+				providersConf.ActiveAuthMode = profile.AuthMode
+			}
+		} else {
+			if provider, ok := providersConf.Providers[providerName]; ok {
+				providersConf.ActiveAuthMode = provider.EffectiveAuthMode()
+			}
+		}
+		if conf.Providers.ConfigFile != "" {
+			if err := config.SaveProvidersConfig(conf.Providers.ConfigFile, providersConf); err != nil {
+				log.Printf("[Daemon] No se pudo persistir providers.yaml tras cambio activo: %v", err)
+			}
+		}
+	}
+
 	orchestrator := agent.NewOrchestrator(
 		database,
-		llmManager.Active(),
+		llmManager,
+		providersConf,
 		mcpManager,
 		conf.Security.BlockedPaths,
 		conf.Files.AllowedRoots,
@@ -115,6 +145,7 @@ func NewDaemon(conf *config.Config, database *sql.DB) *Daemon {
 
 	d := &Daemon{
 		Config:       conf,
+		ProvidersConf: providersConf,
 		DB:           database,
 		LLMManager:   llmManager,
 		MCPManager:   mcpManager,
@@ -213,6 +244,38 @@ func NewDaemon(conf *config.Config, database *sql.DB) *Daemon {
 		d.WorkspaceWatcher = workspace.NewWatcher(wsPath, conf.Workspace.IncludeFiles, wsLoader, onReload)
 	}
 
+	// Validar selección activa de LLM al iniciar en segundo plano (para no bloquear el arranque si está offline)
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		activeP := llmManager.Active()
+		if activeP != nil {
+			log.Printf("[Daemon] Validando proveedor activo '%s'...", activeP.Name())
+			if err := activeP.Ping(ctx); err != nil {
+				log.Printf("[Daemon] Advertencia: El proveedor '%s' no responde al ping inicial: %v", activeP.Name(), err)
+			} else {
+				// Si el proveedor está disponible, validar que el modelo activo existe en Ollama
+				if activeP.Name() == "ollama" {
+					models, err := llmManager.ListModelsForProvider(ctx, activeP.Name())
+					if err == nil && len(models) > 0 {
+						found := false
+						var availableModels []string
+						for _, m := range models {
+							availableModels = append(availableModels, m.ID)
+							if m.ID == activeP.ModelID() || strings.HasPrefix(m.ID, activeP.ModelID()+":") || strings.TrimSuffix(m.ID, ":latest") == activeP.ModelID() {
+								found = true
+								break
+							}
+						}
+						if !found {
+							log.Printf("[Daemon] Advertencia: El modelo activo '%s' no se encuentra entre los instalados en Ollama. Modelos disponibles: %s", activeP.ModelID(), strings.Join(availableModels, ", "))
+						}
+					}
+				}
+			}
+		}
+	}()
+
 	return d
 }
 
@@ -298,25 +361,82 @@ func (d *Daemon) Stop() {
 	_ = d.DB.Close()
 }
 
-// StartVoiceLoop arranca la goroutine del loop continuo de voz
+// StartVoiceLoop arranca la goroutine del loop continuo de voz o el proceso Vosk
 func (d *Daemon) StartVoiceLoop(ctx context.Context) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if d.voiceCancel != nil {
+	if d.voiceCancel != nil || d.voskCmd != nil {
 		return // Ya está corriendo
 	}
 
 	d.voiceCtx, d.voiceCancel = context.WithCancel(ctx)
+
 	vadThresh := d.Config.Voice.VadThreshold
 	if vadThresh <= 0 {
 		vadThresh = 550.0
 	}
 
+	// Inicializar motor de voz (Piper TTS) para todas las modalidades
 	if err := voice.StartVoiceEngine(".", d.Config.Voice.PiperModel, d.Config.Voice.WhisperModel, vadThresh); err != nil {
-		log.Printf("[Daemon Voice] Error al inicializar motor de voz: %v", err)
+		log.Printf("[Daemon Voice] Error al inicializar motor de voz (Piper/Whisper): %v", err)
+	}
+
+	if d.Config.Voice.Engine == "vosk" {
+		log.Println("[Daemon Voice] Iniciando motor de voz Vosk local...")
+		pythonBin := "./venv/bin/python"
+		if _, err := os.Stat("venv/bin/python"); err != nil {
+			pythonBin = "python3"
+		}
+		
+		cmd := exec.Command(pythonBin, "-u", "scripts/rbot-voice-vosk.py")
+		
+		// Guardar logs de Vosk en logs/rbot-voice-vosk.log
+		_ = os.MkdirAll("logs", 0755)
+		logFile, err := os.OpenFile("logs/rbot-voice-vosk.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+		if err == nil {
+			cmd.Stdout = logFile
+			cmd.Stderr = logFile
+		} else {
+			log.Printf("[Daemon Voice] No se pudo abrir log de Vosk: %v", err)
+		}
+		
+		if err := cmd.Start(); err != nil {
+			log.Printf("[Daemon Voice] Error al iniciar script de Vosk: %v", err)
+			d.voiceCancel()
+			d.voiceCancel = nil
+			d.voiceCtx = nil
+			return
+		}
+		
+		d.voskCmd = cmd
+		
+		// Notificar estados al bus
+		d.EventBus.Publish(Event{Type: "voice.engine.started", Payload: nil})
+		d.EventBus.Publish(Event{
+			Type:    "voice.ready",
+			Payload: map[string]interface{}{"message": "Entorno preparado, señor (Vosk)."},
+		})
+		d.Orchestrator.IsVoiceMode = true
+		d.isVoiceAwake = false
+		
+		// Monitorear finalización inesperada de Vosk
+		go func() {
+			err := cmd.Wait()
+			log.Printf("[Daemon Voice] El puente de Vosk se ha detenido: %v", err)
+			d.mu.Lock()
+			d.voskCmd = nil
+			if d.voiceCancel != nil {
+				d.voiceCancel()
+				d.voiceCancel = nil
+				d.voiceCtx = nil
+			}
+			d.mu.Unlock()
+		}()
 		return
 	}
+
+	// Whisper nativo
 	voice.OnAudioLevel = func(level float64) {
 		d.EventBus.Publish(Event{
 			Type:    "voice.audio_level",
@@ -335,6 +455,12 @@ func (d *Daemon) StartVoiceLoop(ctx context.Context) {
 func (d *Daemon) StopVoiceLoop() {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+
+	if d.voskCmd != nil {
+		log.Println("[Daemon Voice] Deteniendo motor de voz Vosk...")
+		_ = d.voskCmd.Process.Kill()
+		d.voskCmd = nil
+	}
 
 	if d.voiceCancel != nil {
 		d.voiceCancel()
@@ -401,7 +527,13 @@ func (d *Daemon) runVoiceLoop(ctx context.Context) {
 			}
 		}
 
-		if !d.isVoiceAwake && triggerDetected == "" {
+		isWindowCmd := false
+		textoLowerTrim := strings.TrimSpace(textoLower)
+		if strings.Contains(textoLowerTrim, "configurac") || strings.Contains(textoLowerTrim, "ajustes") || strings.Contains(textoLowerTrim, "panel") {
+			isWindowCmd = true
+		}
+
+		if !d.isVoiceAwake && triggerDetected == "" && !isWindowCmd {
 			continue
 		}
 
@@ -450,6 +582,11 @@ func (d *Daemon) runVoiceLoop(ctx context.Context) {
 				voice.ResumeMedia()
 				continue
 			}
+		} else if isWindowCmd {
+			d.isVoiceAwake = true
+			d.EventBus.Publish(Event{Type: "voice.wake_detected", Payload: map[string]interface{}{"word": "comando_ventana"}})
+			lastInteraction = time.Now()
+			cmdLimpio = texto
 		} else if d.isVoiceAwake {
 			cmdLimpio = texto
 			lastInteraction = time.Now()
@@ -680,11 +817,38 @@ func (d *Daemon) HandleCommand(method string, args map[string]interface{}) (inte
 			"time":        time.Now().Format(time.RFC3339),
 		}, nil
 
+	case "voice.wake":
+		d.mu.Lock()
+		d.isVoiceAwake = true
+		d.mu.Unlock()
+		d.EventBus.Publish(Event{
+			Type:    "voice.wake_detected",
+			Payload: map[string]interface{}{"word": "IPC"},
+		})
+		d.speakWithEvents("¿Sí, señor?")
+		return "Daemon despertado.", nil
+
+	case "voice.sleep":
+		d.mu.Lock()
+		d.isVoiceAwake = false
+		d.mu.Unlock()
+		d.EventBus.Publish(Event{
+			Type:    "voice.sleeping",
+			Payload: nil,
+		})
+		d.speakWithEvents("Entendido señor, vuelvo al modo de espera.")
+		return "Daemon puesto en reposo.", nil
+
 	case "agent.say":
 		text, _ := args["text"].(string)
 		if text == "" {
 			return nil, fmt.Errorf("el parámetro 'text' es requerido")
 		}
+
+		d.EventBus.Publish(Event{
+			Type:    "voice.transcribed",
+			Payload: map[string]interface{}{"text": text, "is_trigger": false},
+		})
 
 		d.EventBus.Publish(Event{
 			Type:    "agent.thinking",
@@ -707,7 +871,7 @@ func (d *Daemon) HandleCommand(method string, args map[string]interface{}) (inte
 		})
 
 		if d.Config.Agent.VoiceEnabled {
-			d.speakWithEvents(respText)
+			go d.speakWithEvents(respText)
 		}
 
 		return AgentResponse{
@@ -961,6 +1125,7 @@ func (d *Daemon) HandleCommand(method string, args map[string]interface{}) (inte
 		return map[string]interface{}{
 			"provider": p.Name(),
 			"model":    p.ModelID(),
+			"profile":  d.LLMManager.ActiveProfile(),
 			"status":   status,
 		}, nil
 
@@ -972,12 +1137,110 @@ func (d *Daemon) HandleCommand(method string, args map[string]interface{}) (inte
 		if d.LLMManager == nil {
 			return nil, fmt.Errorf("LLM Manager no inicializado")
 		}
-		if err := d.LLMManager.SetActive(name); err != nil {
+		profileName := d.profileForProvider(name)
+		modelID := ""
+		if p, ok := d.LLMManager.Registry().Get(name); ok {
+			modelID = p.ModelID()
+		}
+		if err := d.LLMManager.SetActiveSelection(name, modelID, profileName); err != nil {
 			return nil, err
 		}
-		// Actualizar el proveedor en el orquestador
-		d.Orchestrator.LLM = d.LLMManager.Active()
+		if d.Orchestrator != nil {
+			d.Orchestrator.LLM = d.LLMManager.Active()
+		}
 		return fmt.Sprintf("Proveedor LLM cambiado a '%s' (modelo: %s).", name, d.LLMManager.Active().ModelID()), nil
+
+	case "profiles.list":
+		if d.ProvidersConf == nil {
+			return nil, fmt.Errorf("config de providers no inicializada")
+		}
+		var list []map[string]interface{}
+		for name, profile := range d.ProvidersConf.Profiles {
+			list = append(list, map[string]interface{}{
+				"name":        name,
+				"provider":    profile.Provider,
+				"model":       profile.Model,
+				"auth_mode":   profile.AuthMode,
+				"enabled":     profile.Enabled,
+				"description": profile.Description,
+			})
+		}
+		sort.Slice(list, func(i, j int) bool {
+			return fmt.Sprint(list[i]["name"]) < fmt.Sprint(list[j]["name"])
+		})
+		return list, nil
+
+	case "profiles.use":
+		profileName, _ := args["name"].(string)
+		if profileName == "" {
+			return nil, fmt.Errorf("el parámetro 'name' es requerido")
+		}
+		if d.LLMManager == nil {
+			return nil, fmt.Errorf("LLM Manager no inicializado")
+		}
+
+		// Recargar la configuración de proveedores desde el disco para reflejar ediciones externas
+		if d.Config != nil {
+			providersPath := d.Config.Providers.ConfigFile
+			if providersPath != "" {
+				newProvidersConf, err := config.LoadProvidersConfig(providersPath)
+				if err == nil {
+					// Reconstruir el registro de proveedores LLM
+					bootstrapResult, err := llmBootstrap.BuildRegistry(d.Config, newProvidersConf, secrets.NewManager())
+					if err == nil {
+						d.ProvidersConf = newProvidersConf
+						d.LLMManager.SetRegistry(bootstrapResult.Registry)
+					} else {
+						log.Printf("[Daemon] Error reconstruyendo registry LLM en profiles.use: %v", err)
+					}
+				} else {
+					log.Printf("[Daemon] Error recargando proveedores en profiles.use: %v", err)
+				}
+			}
+		}
+
+		if d.ProvidersConf == nil {
+			return nil, fmt.Errorf("config de providers no inicializada")
+		}
+		profile, ok := d.ProvidersConf.Profiles[profileName]
+		if !ok {
+			return nil, fmt.Errorf("perfil '%s' no está disponible", profileName)
+		}
+		if !profile.Enabled {
+			profile.Enabled = true
+			d.ProvidersConf.Profiles[profileName] = profile
+		}
+
+		modelID := profile.Model
+		if modelID == "" || modelID == "auto" {
+			if p, ok := d.LLMManager.Registry().Get(profile.Provider); ok {
+				modelID = p.ModelID()
+			}
+		}
+		if err := d.LLMManager.SetActiveSelection(profile.Provider, modelID, profileName); err != nil {
+			return nil, err
+		}
+		d.ProvidersConf.ActiveProfile = profileName
+		d.ProvidersConf.ActiveProvider = profile.Provider
+		d.ProvidersConf.ActiveModel = modelID
+		d.ProvidersConf.ActiveAuthMode = profile.AuthMode
+		if d.Config != nil {
+			providersPath := d.Config.Providers.ConfigFile
+			if providersPath != "" {
+				if err := config.SaveProvidersConfig(providersPath, d.ProvidersConf); err != nil {
+					log.Printf("[Daemon] No se pudo persistir active_profile: %v", err)
+				}
+			}
+		}
+		if d.Orchestrator != nil {
+			d.Orchestrator.LLM = d.LLMManager.Active()
+		}
+		return map[string]interface{}{
+			"profile":   profileName,
+			"provider":  profile.Provider,
+			"model":     modelID,
+			"auth_mode": profile.AuthMode,
+		}, nil
 
 	case "models.list":
 		if d.LLMManager == nil {
@@ -1037,6 +1300,27 @@ func (d *Daemon) HandleCommand(method string, args map[string]interface{}) (inte
 	default:
 		return nil, fmt.Errorf("método no soportado: %s", method)
 	}
+}
+
+func (d *Daemon) profileForProvider(providerName string) string {
+	if d.ProvidersConf == nil {
+		return ""
+	}
+	if profile, ok := d.ProvidersConf.Profiles[providerName]; ok && profile.Enabled && profile.Provider == providerName {
+		return providerName
+	}
+	keys := make([]string, 0, len(d.ProvidersConf.Profiles))
+	for name := range d.ProvidersConf.Profiles {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	for _, name := range keys {
+		profile := d.ProvidersConf.Profiles[name]
+		if profile.Enabled && profile.Provider == providerName {
+			return name
+		}
+	}
+	return ""
 }
 
 // speakWithEvents sintetiza voz de forma síncrona mientras emite eventos del nivel de audio en una goroutine

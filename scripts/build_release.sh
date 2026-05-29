@@ -38,7 +38,15 @@ build_binary() {
 	fi
 }
 
-ARCHITECTURES=("amd64" "arm64")
+# Detectar arquitectura por defecto
+HOST_ARCH="$(uname -m)"
+case "$HOST_ARCH" in
+	x86_64) HOST_ARCH="amd64" ;;
+	aarch64|arm64) HOST_ARCH="arm64" ;;
+	*) HOST_ARCH="amd64" ;;
+esac
+
+ARCHITECTURES=("${1:-$HOST_ARCH}")
 BASE_BINARIES=("rbot" "rbotd" "rbotctl" "rbot-settings-gio")
 
 for ARCH in "${ARCHITECTURES[@]}"; do
@@ -49,13 +57,14 @@ for ARCH in "${ARCHITECTURES[@]}"; do
 	mkdir -p "${TARGET_DIR}/share/rbot"
 	mkdir -p "${TARGET_DIR}/config/rbot"
 	mkdir -p "${TARGET_DIR}/systemd"
+	mkdir -p "${TARGET_DIR}/scripts"
 
 	for binary in "${BASE_BINARIES[@]}"; do
 		build_binary "$TARGET_DIR" "$binary" "./cmd/${binary}"
 	done
 
 	if [ "$BUILD_HUD" = "1" ]; then
-		build_binary "$TARGET_DIR" "rbot-hud" "./cmd/rbot-hud" -tags hud
+		build_binary "$TARGET_DIR" "rbot-hud" "./cmd/rbot-hud" -tags "gtk_3_18 hud"
 	fi
 
 	printf '%b\n' "${GREEN}Binarios compilados exitosamente.${NC}"
@@ -79,6 +88,14 @@ for ARCH in "${ARCHITECTURES[@]}"; do
 
 	if [ -d "systemd" ]; then
 		cp systemd/*.service "${TARGET_DIR}/systemd/" 2>/dev/null || true
+	fi
+
+	if [ -d "scripts" ]; then
+		cp -r scripts/* "${TARGET_DIR}/scripts/"
+	fi
+
+	if [ -f "install.sh" ]; then
+		cp install.sh "${TARGET_DIR}/"
 	fi
 
 	printf '%b\n' "${YELLOW}[3/4] Empaquetando en ${APP_NAME}-linux-${ARCH}.tar.gz...${NC}"

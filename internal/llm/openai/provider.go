@@ -139,7 +139,7 @@ func (p *Provider) Chat(ctx context.Context, messages []llm.Message, tools []llm
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/chat/completions", p.baseURL)
+	url := p.formatURL("/v1/chat/completions")
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(rawBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
@@ -226,7 +226,7 @@ func (p *Provider) readSSEStream(resp *http.Response, onChunk func(string)) (*ll
 
 // ListModels consulta GET /v1/models para listar modelos disponibles.
 func (p *Provider) ListModels(ctx context.Context) ([]llm.ModelInfo, error) {
-	url := fmt.Sprintf("%s/v1/models", p.baseURL)
+	url := p.formatURL("/v1/models")
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
@@ -272,7 +272,7 @@ func (p *Provider) ListModels(ctx context.Context) ([]llm.ModelInfo, error) {
 
 // Ping verifica que OpenAI esté accesible.
 func (p *Provider) Ping(ctx context.Context) error {
-	url := fmt.Sprintf("%s/v1/models", p.baseURL)
+	url := p.formatURL("/v1/models")
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return err
@@ -303,4 +303,12 @@ func isRelevantModel(id string) bool {
 		}
 	}
 	return false
+}
+
+func (p *Provider) formatURL(path string) string {
+	baseURL := strings.TrimRight(p.baseURL, "/")
+	if strings.HasSuffix(strings.ToLower(baseURL), "/v1") && strings.HasPrefix(strings.ToLower(path), "/v1") {
+		path = path[3:]
+	}
+	return baseURL + path
 }

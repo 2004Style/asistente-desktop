@@ -70,7 +70,7 @@ func TestEventMapper_TTSFlow(t *testing.T) {
 	up2 := mapper.mapEvent(UIEvent{
 		Type: "tts.finished",
 	})
-	if up2 == nil || up2.State != HUDSleeping || up2.Visible == nil || *up2.Visible {
+	if up2 == nil || up2.State != HUDSleeping {
 		t.Errorf("TTS finish (not awake) incorrecto: %+v", up2)
 	}
 

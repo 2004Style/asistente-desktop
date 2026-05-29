@@ -141,11 +141,34 @@ func main() {
 			log.Printf("[LLM] No se pudo activar proveedor '%s': %v", bootstrapResult.Active, err)
 		}
 	}
+	if bootstrapResult.ActiveProfile != "" || bootstrapResult.ActiveModel != "" || bootstrapResult.ActiveAuthMode != "" {
+		log.Printf("[LLM] Selección activa: profile=%s provider=%s model=%s auth=%s", bootstrapResult.ActiveProfile, bootstrapResult.Active, bootstrapResult.ActiveModel, bootstrapResult.ActiveAuthMode)
+	}
+
+	// Configurar callback de cambio de selección para mantener providersConf y YAML al día
+	llmManager.OnActiveSelectionChanged = func(providerName, modelID, profileName string) {
+		providersConf.ActiveProvider = providerName
+		providersConf.ActiveModel = modelID
+		providersConf.ActiveProfile = profileName
+		if profileName != "" {
+			if profile, ok := providersConf.Profiles[profileName]; ok {
+				providersConf.ActiveAuthMode = profile.AuthMode
+			}
+		} else {
+			if provider, ok := providersConf.Providers[providerName]; ok {
+				providersConf.ActiveAuthMode = provider.EffectiveAuthMode()
+			}
+		}
+		if conf.Providers.ConfigFile != "" {
+			_ = config.SaveProvidersConfig(conf.Providers.ConfigFile, providersConf)
+		}
+	}
 
 	// Inicializar Orquestador del Agente
 	orchestrator := agent.NewOrchestrator(
 		database,
-		llmManager.Active(),
+		llmManager,
+		providersConf,
 		mcpManager,
 		conf.Security.BlockedPaths,
 		conf.Files.AllowedRoots,

@@ -67,6 +67,25 @@ Seguridad y secretos
 HUD y build tags
 
 - El HUD GTK está aislado con el build tag `hud`. La suite de CI y `go test ./...` corren un stub por defecto.
+
+## Modelos de Transcripción de Alta Calidad (HQ)
+
+Por defecto, RBot descarga e integra versiones ultra-ligeras de modelos para agilizar la instalación (Vosk de 20MB y Whisper Tiny de 75MB). Si notas que la precisión de transcripción no es lo suficientemente buena, puedes actualizar a modelos de alta precisión (similares a los usados en proyectos como Jarvis) usando nuestro script automatizado:
+
+```bash
+./scripts/download_hq_models.py
+```
+
+El script te guiará para:
+1. Reemplazar el modelo **Vosk** por el modelo profesional en español de **1.4 GB** (mejorando significativamente la detección en tiempo real).
+2. Descargar un modelo **Whisper** más preciso, permitiéndote elegir entre:
+   - **Base** (~140 MB): Rapidez y precisión moderada.
+   - **Small** (~460 MB - *Recomendado*): Excelente balance de precisión en español y velocidad.
+   - **Medium** (~1.5 GB): Precisión a nivel humano, requiere mayor capacidad de cómputo.
+
+El script se encargará de realizar las descargas de forma automática y actualizar tu archivo de configuración `config/rbot.yaml`.
+
+## HUD y build tags
 - Para preparar el entorno de desarrollo completo y compilar el HUD nativo cuando tengas GTK dev libs instaladas:
 
 ```bash

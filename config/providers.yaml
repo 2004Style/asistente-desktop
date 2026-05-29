@@ -1,26 +1,384 @@
-active_provider: ollama
-active_model: qwen2.5:7b
-
+version: 2
+active:
+    provider: openrouter
+    model: openrouter/free
+    auth_profile: openrouter_profile
+active_profile: openrouter_profile
+active_provider: openrouter
+active_model: openrouter/free
+active_auth_mode: api_key
+auth_modes:
+    adc:
+        internal_name: application_default_credentials
+        display_name: Usar credenciales de Google Cloud
+    api_key:
+        internal_name: api_key
+        display_name: Usar API Key
+        token_store: system_keychain
+    browser_oauth:
+        internal_name: oauth_pkce
+        display_name: Iniciar sesión con navegador
+        flow: authorization_code_pkce
+        callback_host: 127.0.0.1
+        callback_path: /auth/callback
+        token_store: system_keychain
+    device_code:
+        internal_name: device_code
+        display_name: Iniciar sesión con código
+        token_store: system_keychain
+    none:
+        internal_name: none
+        display_name: Sin autenticación
+    service_account:
+        internal_name: service_account
+        display_name: Usar cuenta de servicio
+billing_modes:
+    cloud_project:
+        description: Uso facturado a un proyecto cloud
+    credits:
+        description: Uso descontado de créditos prepagados
+    local:
+        description: Ejecución local sin facturación externa
+    pay_as_you_go:
+        description: Uso facturado por consumo directo de API
+    subscription:
+        description: Uso asociado a una suscripción del usuario
+runtime_modes:
+    direct_api:
+        description: Uso directo contra la API del proveedor
+    gateway_api:
+        description: Uso mediante gateway compatible como OpenRouter
+    local_runtime:
+        description: Uso mediante runtime local como Ollama
+    official_cli_session:
+        description: Uso mediante sesión gestionada por CLI oficial
 providers:
-  ollama:
-    enabled: true
-    type: ollama
-    auth_mode: none
-    base_url: http://localhost:11434
-    model: qwen2.5:7b
-
-  openai:
-    enabled: false
-    type: openai
-    auth_mode: api_key
-    base_url: https://api.openai.com
-    secret_ref: env:OPENAI_API_KEY
-    model: gpt-4o-mini
-
-  compatible:
-    enabled: false
-    type: compatible
-    auth_mode: api_key
-    base_url: ""
-    secret_ref: ""
-    model: ""
+    anthropic:
+        enabled: false
+        type: compatible
+        display_name: Anthropic Claude
+        connection:
+            base_url: https://api.anthropic.com
+        base_url: https://api.anthropic.com
+        auth_mode: api_key
+        secret_ref: env:ANTHROPIC_API_KEY
+        default_model: claude-3-5-sonnet-latest
+        model: claude-3-5-sonnet-latest
+        models:
+            claude-3-5-sonnet-latest:
+                id: claude-3-5-sonnet-latest
+                label: Claude 3.5 Sonnet
+                enabled: true
+                default: true
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: true
+                    conversationstate: true
+        discovery:
+            enabled: false
+            strategy: compatible_models_api
+            cache_ttl_seconds: 3600
+        auth_modes:
+            api_key:
+                type: api_key
+                enabled: true
+                secret_ref: env:ANTHROPIC_API_KEY
+            browser_oauth:
+                type: browser_oauth
+                enabled: true
+        capabilities:
+            - auth_mode: browser_oauth
+              billing_mode: subscription
+              runtime_mode: official_cli_session
+              usage: Claude subscription / Claude Code
+            - auth_mode: api_key
+              billing_mode: pay_as_you_go
+              runtime_mode: direct_api
+              env_key: ANTHROPIC_API_KEY
+              header: x-api-key
+    deepseek:
+        enabled: false
+        type: compatible
+        display_name: DeepSeek
+        connection:
+            base_url: https://api.deepseek.com
+        base_url: https://api.deepseek.com
+        auth_mode: api_key
+        secret_ref: env:DEEPSEEK_API_KEY
+        default_model: deepseek-chat
+        model: deepseek-chat
+        models:
+            deepseek-chat:
+                id: deepseek-chat
+                label: DeepSeek Chat
+                enabled: true
+                default: true
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: false
+                    conversationstate: true
+        discovery:
+            enabled: false
+            strategy: compatible_models_api
+            cache_ttl_seconds: 3600
+        auth_modes:
+            api_key:
+                type: api_key
+                enabled: true
+                secret_ref: env:DEEPSEEK_API_KEY
+        capabilities:
+            - auth_mode: api_key
+              billing_mode: pay_as_you_go
+              runtime_mode: direct_api
+              env_key: DEEPSEEK_API_KEY
+              base_url: https://api.deepseek.com
+              compatibility:
+                - openai
+                - anthropic
+    google_gemini:
+        enabled: false
+        type: compatible
+        display_name: Google Gemini
+        connection:
+            base_url: https://generativelanguage.googleapis.com/v1beta/openai
+        base_url: https://generativelanguage.googleapis.com/v1beta/openai
+        auth_mode: api_key
+        secret_ref: env:GEMINI_API_KEY
+        default_model: gemini-2.5-flash
+        model: gemini-2.5-flash
+        models:
+            gemini-2.5-flash:
+                id: gemini-2.5-flash
+                label: Gemini 2.5 Flash
+                enabled: true
+                default: true
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: true
+                    conversationstate: true
+        discovery:
+            enabled: false
+            strategy: compatible_models_api
+            cache_ttl_seconds: 3600
+        auth_modes:
+            adc:
+                type: adc
+                enabled: true
+            api_key:
+                type: api_key
+                enabled: true
+                secret_ref: env:GEMINI_API_KEY
+            browser_oauth:
+                type: browser_oauth
+                enabled: true
+            service_account:
+                type: service_account
+                enabled: true
+        capabilities:
+            - auth_mode: browser_oauth
+              billing_mode: subscription
+              runtime_mode: official_cli_session
+              usage: Login with Google / Gemini CLI
+            - auth_mode: api_key
+              billing_mode: pay_as_you_go
+              runtime_mode: direct_api
+              env_key: GEMINI_API_KEY
+            - auth_mode: adc
+              billing_mode: cloud_project
+              runtime_mode: direct_api
+              usage: Vertex AI with Google Cloud project
+            - auth_mode: service_account
+              billing_mode: cloud_project
+              runtime_mode: direct_api
+              usage: Vertex AI service account
+    ollama:
+        enabled: true
+        type: ollama
+        display_name: Ollama
+        connection:
+            base_url: http://localhost:11434
+        base_url: http://localhost:11434
+        auth_mode: none
+        default_model: qwen2.5:7b
+        model: qwen2.5:7b
+        models:
+            qwen2.5-coder:7b:
+                id: qwen2.5-coder:7b
+                label: Qwen 2.5 Coder 7B
+                enabled: true
+                default: false
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: false
+                    conversationstate: true
+            qwen2.5:7b:
+                id: qwen2.5:7b
+                label: Qwen 2.5 7B
+                enabled: true
+                default: true
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: false
+                    conversationstate: true
+        discovery:
+            enabled: true
+            strategy: ollama_api
+            cache_ttl_seconds: 60
+        auth_modes:
+            none:
+                type: none
+                enabled: true
+        capabilities:
+            - auth_mode: none
+              billing_mode: local
+              runtime_mode: local_runtime
+              base_url: http://localhost:11434
+    openai:
+        enabled: false
+        type: openai
+        display_name: OpenAI
+        connection:
+            base_url: https://api.openai.com/v1
+        base_url: https://api.openai.com/v1
+        auth_mode: api_key
+        secret_ref: env:OPENAI_API_KEY
+        default_model: gpt-4o-mini
+        model: gpt-4o-mini
+        models:
+            gpt-4o:
+                id: gpt-4o
+                label: GPT-4o
+                enabled: true
+                default: false
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: true
+                    conversationstate: true
+            gpt-4o-mini:
+                id: gpt-4o-mini
+                label: GPT-4o mini
+                enabled: true
+                default: true
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: true
+                    conversationstate: true
+        discovery:
+            enabled: true
+            strategy: openai_models_api
+            cache_ttl_seconds: 3600
+        auth_modes:
+            api_key:
+                type: api_key
+                enabled: true
+                secret_ref: env:OPENAI_API_KEY
+            browser_oauth:
+                type: browser_oauth
+                enabled: true
+                session_ref: system_keyring:openai_session
+        capabilities:
+            - auth_mode: browser_oauth
+              billing_mode: subscription
+              runtime_mode: official_cli_session
+              usage: ChatGPT / Codex subscription
+            - auth_mode: api_key
+              billing_mode: pay_as_you_go
+              runtime_mode: direct_api
+              env_key: OPENAI_API_KEY
+              base_url: https://api.openai.com/v1
+    openrouter:
+        enabled: true
+        type: compatible
+        category: model_gateway
+        provider_type: gateway
+        display_name: "OpenRouter"
+        base_url: "https://openrouter.ai/api/v1"
+        auth_mode: api_key
+        billing_mode: credits
+        runtime_mode: gateway_api
+        secret_ref: env:OPENROUTER_API_KEY
+        default_model: openrouter/free
+        model: openrouter/free
+        compatibility:
+            - openai_chat_completions
+        supports:
+            model_routing: true
+            multi_provider: true
+            fallback: true
+            free_models: true
+            paid_models: true
+            subscription_login: false
+            streaming: true
+        models:
+            openrouter/free:
+                id: openrouter/free
+                label: Free Router
+                enabled: true
+                default: true
+                pricing: free
+                capabilities:
+                    toolcalling: dynamic
+                    streaming: true
+                    vision: dynamic
+                    conversationstate: true
+            google/gemini-2.5-flash:
+                id: google/gemini-2.5-flash
+                label: Gemini 2.5 Flash via OpenRouter
+                enabled: true
+                default: false
+                pricing: paid_or_provider_priced
+                capabilities:
+                    toolcalling: true
+                    streaming: true
+                    vision: true
+                    conversationstate: true
+        discovery:
+            enabled: true
+            strategy: openrouter_models_api
+            cache_ttl_seconds: 3600
+        capabilities:
+            - auth_mode: api_key
+              billing_mode: credits
+              runtime_mode: gateway_api
+              env_key: "OPENROUTER_API_KEY"
+              base_url: "https://openrouter.ai/api/v1"
+              compatibility:
+                  - openai_chat_completions
+profiles:
+    local_code:
+        provider: ollama
+        model: qwen2.5-coder:7b
+        auth_mode: none
+        enabled: true
+    local_fast:
+        provider: ollama
+        model: qwen2.5:7b
+        auth_mode: none
+        enabled: true
+    openai_api:
+        provider: openai
+        model: gpt-4o-mini
+        auth_mode: api_key
+        secret_ref: env:OPENAI_API_KEY
+        enabled: true
+    openai_oauth:
+        provider: openai
+        model: gpt-4o-mini
+        auth_mode: browser_oauth
+        session_ref: system_keyring:openai_session
+        enabled: true
+    openrouter_profile:
+        provider: openrouter
+        model: openrouter/free
+        auth_mode: api_key
+        billing_mode: credits
+        runtime_mode: gateway_api
+        secret_ref: env:OPENROUTER_API_KEY
+        enabled: true

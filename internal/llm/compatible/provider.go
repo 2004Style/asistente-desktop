@@ -63,6 +63,7 @@ type Provider struct {
 	baseURL      string
 	apiKey       string
 	model        string
+	customHeader string
 	httpClient   *http.Client
 }
 
@@ -72,11 +73,17 @@ type Provider struct {
 // apiKey: clave API (puede estar vacía para endpoints locales)
 // model: modelo por defecto
 func NewProvider(providerName, baseURL, apiKey, model string) *Provider {
+	return NewProviderWithHeader(providerName, baseURL, apiKey, model, "")
+}
+
+// NewProviderWithHeader crea un nuevo proveedor compatible con cabecera de autenticación personalizada.
+func NewProviderWithHeader(providerName, baseURL, apiKey, model, customHeader string) *Provider {
 	return &Provider{
 		providerName: providerName,
 		baseURL:      strings.TrimRight(baseURL, "/"),
 		apiKey:       apiKey,
 		model:        model,
+		customHeader: customHeader,
 		httpClient: &http.Client{
 			Timeout: 90 * time.Second,
 		},
@@ -121,14 +128,18 @@ func (p *Provider) Chat(ctx context.Context, messages []llm.Message, tools []llm
 		return nil, fmt.Errorf("error marshalling request: %v", err)
 	}
 
-	url := fmt.Sprintf("%s/v1/chat/completions", p.baseURL)
+	url := p.formatURL("/v1/chat/completions")
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(rawBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	if p.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		if p.customHeader != "" {
+			req.Header.Set(p.customHeader, p.apiKey)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		}
 	}
 
 	resp, err := p.httpClient.Do(req)
@@ -206,13 +217,17 @@ func (p *Provider) readSSEStream(resp *http.Response, onChunk func(string)) (*ll
 
 // ListModels consulta GET /v1/models.
 func (p *Provider) ListModels(ctx context.Context) ([]llm.ModelInfo, error) {
-	url := fmt.Sprintf("%s/v1/models", p.baseURL)
+	url := p.formatURL("/v1/models")
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
 	}
 	if p.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		if p.customHeader != "" {
+			req.Header.Set(p.customHeader, p.apiKey)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		}
 	}
 
 	resp, err := p.httpClient.Do(req)
@@ -250,13 +265,17 @@ func (p *Provider) ListModels(ctx context.Context) ([]llm.ModelInfo, error) {
 
 // Ping verifica que el endpoint esté accesible.
 func (p *Provider) Ping(ctx context.Context) error {
-	url := fmt.Sprintf("%s/v1/models", p.baseURL)
+	url := p.formatURL("/v1/models")
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return err
 	}
 	if p.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		if p.customHeader != "" {
+			req.Header.Set(p.customHeader, p.apiKey)
+		} else {
+			req.Header.Set("Authorization", "Bearer "+p.apiKey)
+		}
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -273,4 +292,12 @@ func (p *Provider) Ping(ctx context.Context) error {
 		return fmt.Errorf("%s devolvió status %d", p.providerName, resp.StatusCode)
 	}
 	return nil
+}
+
+func (p *Provider) formatURL(path string) string {
+	baseURL := strings.TrimRight(p.baseURL, "/")
+	if strings.HasSuffix(strings.ToLower(baseURL), "/v1") && strings.HasPrefix(strings.ToLower(path), "/v1") {
+		path = path[3:]
+	}
+	return baseURL + path
 }

@@ -10,7 +10,7 @@ NC='\033[0m'
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-BUILD_HUD="${BUILD_HUD:-0}"
+BUILD_HUD="${BUILD_HUD:-1}"
 
 printf '%b\n' "${BLUE}====================================================${NC}"
 printf '%b\n' "${BLUE}    Configurando Entorno de Desarrollo de RBot      ${NC}"
@@ -53,12 +53,81 @@ mkdir -p "${DATA_DIR}/models/piper"
 mkdir -p "${DATA_DIR}/models/whisper"
 mkdir -p "${CONFIG_DIR}"
 
-printf '\n%b\n' "${YELLOW}[3/5] Verificando modelos locales de IA en el repositorio...${NC}"
-if [ ! -d "voices" ] || [ ! -d "models" ]; then
-	printf '%b\n' "${RED}Error: No se encontraron las carpetas 'voices' y 'models' en tu proyecto.${NC}"
-	exit 1
+SETUP_HQ="${SETUP_HQ:-}"
+if [ -z "$SETUP_HQ" ]; then
+	if [ -t 0 ]; then
+		printf '%b\n' "${BLUE}====================================================${NC}"
+		printf '%b\n' "${YELLOW}      Configuración de Calidad de Modelos de Voz    ${NC}"
+		printf '%b\n' "${BLUE}====================================================${NC}"
+		printf 'Elige la calidad de los modelos de voz locales para desarrollo:\n'
+		printf '  1) Modo Ligero [Whisper Tiny (75MB) + Vosk Small (20MB)]\n'
+		printf '  2) Modo Alta Calidad [Whisper Small (460MB) + Vosk Profesional (1.4GB)]\n\n'
+		printf 'Elige una opción (1 o 2) [Por defecto: 1]: '
+		read -r OPT || OPT="1"
+		if [ "$OPT" = "2" ]; then
+			SETUP_HQ=1
+		else
+			SETUP_HQ=0
+		fi
+	else
+		SETUP_HQ=0
+	fi
 fi
-printf '%b\n' "${GREEN}Carpetas de modelos detectadas en el repositorio.${NC}"
+
+mkdir -p voices models config
+
+PIPER_MODEL="voices/es_ES-davefx-medium.onnx"
+PIPER_CONFIG="voices/es_ES-davefx-medium.onnx.json"
+
+if [ "$SETUP_HQ" -eq 1 ]; then
+	WHISPER_MODEL="models/ggml-small.bin"
+	WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+	VOSK_URL="https://alphacephei.com/vosk/models/vosk-model-es-0.42.zip"
+	VOSK_ZIP="vosk-model-es-0.42.zip"
+	VOSK_DIR_NAME="vosk-model-es-0.42"
+else
+	WHISPER_MODEL="models/ggml-tiny.bin"
+	WHISPER_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+	VOSK_URL="https://alphacephei.com/vosk/models/vosk-model-small-es-0.42.zip"
+	VOSK_ZIP="vosk-model-small-es-0.42.zip"
+	VOSK_DIR_NAME="vosk-model-small-es-0.42"
+fi
+
+printf '\n%b\n' "${YELLOW}[3/5] Verificando y descargando modelos locales de IA...${NC}"
+if [ ! -f "$PIPER_MODEL" ]; then
+	printf '%b\n' "${BLUE}Descargando modelo Piper ($PIPER_MODEL)...${NC}"
+	curl -fsSL --progress-bar -o "$PIPER_MODEL" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx"
+fi
+if [ ! -f "$PIPER_CONFIG" ]; then
+	curl -fsSL -o "$PIPER_CONFIG" "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/es/es_ES/davefx/medium/es_ES-davefx-medium.onnx.json"
+fi
+
+if [ ! -f "$WHISPER_MODEL" ]; then
+	printf '%b\n' "${BLUE}Descargando modelo Whisper ($WHISPER_MODEL)...${NC}"
+	curl -fsSL --progress-bar -o "$WHISPER_MODEL" "$WHISPER_URL"
+fi
+
+VOSK_TARGET_DIR="config/vosk_model"
+if [ ! -d "$VOSK_TARGET_DIR" ] || [ ! "$(ls -A "$VOSK_TARGET_DIR" 2>/dev/null)" ]; then
+	printf '%b\n' "${BLUE}Descargando modelo Vosk ($VOSK_ZIP)...${NC}"
+	VOSK_TMP_DIR="$(mktemp -d)"
+	if curl -fsSL --progress-bar "$VOSK_URL" -o "$VOSK_TMP_DIR/$VOSK_ZIP"; then
+		printf '%b\n' "${YELLOW}Extrayendo modelo Vosk...${NC}"
+		python3 -c "import zipfile, sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$VOSK_TMP_DIR/$VOSK_ZIP" "$VOSK_TMP_DIR"
+		rm -rf "$VOSK_TARGET_DIR"
+		mv "$VOSK_TMP_DIR/$VOSK_DIR_NAME" "$VOSK_TARGET_DIR"
+		printf '%b\n' "${GREEN}¡Modelo Vosk instalado con éxito!${NC}"
+	else
+		printf '%b\n' "${RED}Error al descargar el modelo de Vosk.${NC}"
+	fi
+	rm -rf "$VOSK_TMP_DIR"
+fi
+
+if [ "$SETUP_HQ" -eq 1 ] && [ -f "config/rbot.yaml" ]; then
+	printf '%b\n' "${YELLOW}Configurando Whisper en modo Small en config/rbot.yaml...${NC}"
+	sed -i 's|models/ggml-tiny.bin|models/ggml-small.bin|g' "config/rbot.yaml" 2>/dev/null || true
+	sed -i 's|models/whisper/ggml-tiny.bin|models/whisper/ggml-small.bin|g' "config/rbot.yaml" 2>/dev/null || true
+fi
 
 printf '\n%b\n' "${YELLOW}[4/5] Configurando enlaces simbólicos (Symlinks)...${NC}"
 rm -rf "${DATA_DIR}/skills"
@@ -92,8 +161,8 @@ go build -o bin/rbot-settings-gio ./cmd/rbot-settings-gio
 
 go build -o bin/rbot-hud ./cmd/rbot-hud
 if [ "$BUILD_HUD" = "1" ]; then
-	go build -tags hud -o bin/rbot-hud ./cmd/rbot-hud
-	printf '%b\n' "${GREEN}HUD nativo compilado con -tags hud.${NC}"
+	go build -tags "gtk_3_18 hud" -o bin/rbot-hud ./cmd/rbot-hud
+	printf '%b\n' "${GREEN}HUD nativo compilado con -tags "gtk_3_18 hud".${NC}"
 else
 	printf '%b\n' "${YELLOW}HUD nativo no compilado. Para activarlo: BUILD_HUD=1 ./scripts/setup_dev.sh${NC}"
 fi

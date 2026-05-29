@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2004Style Assistant HUD</title>
+
+    <style>
+      :root {
+        --bg: #02050b;
+        --cyan: #00f5ff;
+        --green: #00ff9d;
+        --blue: #2f6bff;
+        --red: #ff3b64;
+        --yellow: #ffd166;
+        --text: #eaffff;
+        --muted: rgba(234, 255, 255, 0.56);
+        --panel: rgba(3, 18, 31, 0.58);
+        --dark: rgba(0, 8, 18, 0.78);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        font-family: Inter, system-ui, sans-serif;
+        color: var(--text);
+        background: radial-gradient(circle at 50% 40%, rgba(0, 245, 255, 0.16), transparent 30%), radial-gradient(circle at 10% 15%, rgba(0, 255, 157, 0.13), transparent 28%), radial-gradient(circle at 90% 80%, rgba(47, 107, 255, 0.15), transparent 30%), linear-gradient(135deg, #02050b, #061321 48%, #02050b);
+      }
+
+      .app {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), transparent 16%), rgba(2, 8, 18, 0.8);
+      }
+
+      .topbar {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px;
+        background: rgba(1, 8, 18, 0.68);
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .brand-mark {
+        width: 34px;
+        height: 34px;
+        background: radial-gradient(circle at 34% 26%, #fff, transparent 16%), conic-gradient(from 180deg, var(--green), var(--cyan), var(--blue), var(--green));
+        box-shadow: 0 0 30px rgba(0, 245, 255, 0.42);
+        clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+      }
+
+      .brand span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .window-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-btn {
+        width: 38px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.055);
+        clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+        font-size: 13px;
+      }
+
+      .window-btn.close {
+        color: rgba(255, 90, 120, 0.85);
+      }
+
+      .hud {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        height: calc(100% - 64px);
+        padding: 28px;
+        gap: 22px;
+        z-index: 1;
+      }
+
+      .stream-zone {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+      }
+
+      .surface {
+        position: relative;
+        padding: 15px 20px;
+        background: linear-gradient(135deg, rgba(0, 245, 255, 0.08), transparent 38%), rgba(3, 18, 31, 0.48);
+        clip-path: polygon(0 18px, 18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+          0 0 50px rgba(0, 245, 255, 0.06);
+        overflow: hidden;
+      }
+
+      .surface::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 4px;
+        height: 100%;
+        background: linear-gradient(var(--cyan), transparent, var(--green));
+        box-shadow: 0 0 18px rgba(0, 245, 255, 0.55);
+      }
+
+      .input-stream::before {
+        background: linear-gradient(var(--blue), transparent, var(--cyan));
+      }
+
+      .surface-title {
+        margin-bottom: 5px;
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .surface-title strong {
+        color: var(--green);
+        font-weight: 900;
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+          0 0 50px rgba(0, 245, 255, 0.06);
+      }
+
+      .input-stream .surface-title strong {
+        color: var(--cyan);
+      }
+
+      .stream-content {
+        overflow: hidden;
+        font-size: 13px;
+        line-height: 1.4;
+        color: rgba(234, 255, 255, 0.88);
+      }
+
+      .stream-content p {
+        margin: 0;
+      }
+
+      .core-zone {
+        position: relative;
+        display: grid;
+        place-items: center;
+      }
+
+      .core-system {
+        position: relative;
+        width: 320px;
+        aspect-ratio: 1;
+        display: grid;
+        place-items: center;
+      }
+
+      .ring {
+        position: absolute;
+        inset: 0;
+        box-shadow: inset 0 0 0 1px rgba(0, 245, 255, 0.18);
+        clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+        animation: rotate 20s linear infinite;
+      }
+
+      .ring.two {
+        inset: 34px;
+        box-shadow: inset 0 0 0 1px rgba(0, 255, 157, 0.16);
+        animation: reverse 14s linear infinite;
+      }
+
+      .ring.three {
+        inset: -32px;
+        box-shadow: inset 0 0 0 1px rgba(47, 107, 255, 0.14);
+        animation: rotate 30s linear infinite;
+      }
+
+      @keyframes rotate {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes reverse {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+
+      .orb {
+        width: 178px;
+        aspect-ratio: 1;
+        clip-path: polygon(50% 0, 90% 16%, 100% 50%, 90% 84%, 50% 100%, 10% 84%, 0 50%, 10% 16%);
+        background: radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.95), transparent 8%), radial-gradient(circle at 48% 44%, rgba(0, 245, 255, 0.94), rgba(47, 107, 255, 0.44) 48%, rgba(0, 0, 0, 0.7));
+        box-shadow:
+          0 0 46px rgba(0, 245, 255, 0.52),
+          0 0 110px rgba(0, 255, 157, 0.16),
+          inset -34px -38px 76px rgba(0, 0, 0, 0.62),
+          inset 22px 18px 46px rgba(255, 255, 255, 0.11);
+        animation: processing 1.35s ease-in-out infinite;
+      }
+
+      @keyframes processing {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.045);
+        }
+      }
+
+      .state-label {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px 22px;
+        min-width: 220px;
+        text-align: center;
+        background: rgba(0, 12, 24, 0.72);
+        clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+          0 0 30px rgba(0, 245, 255, 0.12);
+        color: var(--cyan);
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .side-zone {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .identity-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .identity-block {
+        display: grid;
+        gap: 6px;
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      .identity-block span {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      .identity-block strong {
+        color: var(--cyan);
+        font-size: 15px;
+        font-weight: 950;
+      }
+
+      .identity-block.emphasis strong {
+        color: var(--green);
+      }
+
+      .btn-config {
+        width: fit-content;
+        padding: 8px 14px;
+        color: #001018;
+        background: linear-gradient(135deg, var(--green), var(--cyan));
+        clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+        font-size: 10px;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        box-shadow: 0 0 22px rgba(0, 245, 255, 0.22);
+      }
+
+      .token-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .token-row span {
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .token-row strong {
+        color: var(--text);
+        font-size: 14px;
+        text-align: right;
+      }
+
+      .meter {
+        height: 8px;
+        background: rgba(255, 255, 255, 0.07);
+        clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+        overflow: hidden;
+      }
+
+      .meter span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+        box-shadow: 0 0 20px rgba(0, 245, 255, 0.45);
+      }
+
+      .cost-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .cost-item {
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      }
+
+      .cost-item span {
+        display: block;
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+
+      .cost-item strong {
+        color: var(--yellow);
+        font-size: 16px;
+      }
+
+      .bottom-zone {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 360px;
+        gap: 22px;
+      }
+
+      .input-panel {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: center;
+        padding: 18px 20px;
+        background: linear-gradient(90deg, rgba(0, 245, 255, 0.08), transparent 52%), rgba(3, 18, 31, 0.54);
+        clip-path: polygon(0 16px, 16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+          0 0 44px rgba(0, 245, 255, 0.07);
+      }
+
+      .input-panel input {
+        width: 100%;
+        height: 54px;
+        border: 0;
+        outline: 0;
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.22);
+        padding: 0 18px;
+        font-size: 15px;
+        clip-path: polygon(2% 0, 100% 0, 98% 100%, 0 100%);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.055);
+      }
+
+      .input-panel input::placeholder {
+        color: rgba(234, 255, 255, 0.35);
+      }
+
+      .send-btn {
+        width: 120px;
+        height: 54px;
+        border: 0;
+        color: #001016;
+        background: linear-gradient(135deg, var(--green), var(--cyan));
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+        box-shadow: 0 0 28px rgba(0, 245, 255, 0.28);
+      }
+
+      .state-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        padding: 18px;
+        background: rgba(3, 18, 31, 0.46);
+        clip-path: polygon(0 16px, 16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.045),
+          0 0 44px rgba(0, 245, 255, 0.07);
+      }
+
+      .state-btn {
+        height: 54px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.055);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+      }
+
+      .state-btn.active {
+        color: white;
+        background: rgba(0, 245, 255, 0.16);
+        box-shadow: 0 0 24px rgba(0, 245, 255, 0.18);
+      }
+      .rendimiento-container {
+        display: flex;
+        gap: 12px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark"></div>
+          <div>
+            <h1>2004Style Assistant</h1>
+            <span>Neural Command Interface</span>
+          </div>
+        </div>
+
+        <div class="window-actions">
+          <div class="window-btn">—</div>
+          <div class="window-btn">□</div>
+          <div class="window-btn close">×</div>
+        </div>
+      </header>
+
+      <section class="hud">
+        <section class="stream-zone">
+          <section class="core-zone">
+            <div class="core-system">
+              <div class="ring three"></div>
+              <div class="ring"></div>
+              <div class="ring two"></div>
+              <div class="orb"></div>
+            </div>
+            <div class="state-label">Despierto</div>
+          </section>
+
+          <div class="surface input-stream">
+            <div class="surface-title">
+              <strong>Entrada del usuario</strong>
+              <span>INPUT STREAM</span>
+            </div>
+            <div class="stream-content">
+              <p>Configura OpenRouter como proveedor activo usando modelos gratuitos.</p>
+            </div>
+          </div>
+
+          <div class="surface output-stream">
+            <div class="surface-title">
+              <strong>Respuesta del asistente</strong>
+              <span>OUTPUT STREAM</span>
+            </div>
+            <div class="stream-content">
+              <p>hola buenos dias en que puedo ayudarte hoy?</p>
+            </div>
+          </div>
+
+          <div class="surface">
+            <div class="surface-title">
+              <strong>Rendimiento del sistema</strong>
+            </div>
+            <div class="rendimiento-container">
+              <div class="identity-block">CPU: 2.3 GHz</div>
+              <div class="identity-block">RAM: 16 GB</div>
+              <div class="identity-block">Disco: 512 GB SSD</div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="side-zone">
+          <section class="surface">
+            <div class="surface-title">
+              <strong>Proveedor activo</strong>
+              <span>READ ONLY</span>
+            </div>
+
+            <div class="identity-grid">
+              <div class="identity-block emphasis">
+                <span>Provider</span>
+                <strong>OpenRouter Gateway</strong>
+              </div>
+
+              <div class="identity-block">
+                <span>Model</span>
+                <strong>openrouter/free</strong>
+              </div>
+
+              <div class="identity-block">
+                <span>Auth Mode</span>
+                <strong>api_key</strong>
+              </div>
+
+              <div class="identity-block">
+                <span>Billing Mode</span>
+                <strong>credits</strong>
+              </div>
+
+              <div class="btn-config">Configuracion</div>
+            </div>
+          </section>
+
+          <section class="surface">
+            <div class="surface-title">
+              <strong>Uso de tokens</strong>
+              <span>CONTEXT WINDOW</span>
+            </div>
+
+            <div class="token-row">
+              <strong>$10.05</strong>
+              <strong>14,8k/128k</strong>
+            </div>
+
+            <div class="meter">
+              <span style="width: 11.5%"></span>
+            </div>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

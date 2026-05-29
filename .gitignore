@@ -5,6 +5,7 @@ bin/
 # Modelos locales de IA (muy grandes para Git)
 models/
 voices/
+config/vosk_model/
 
 # Archivos de audio temporales generados al hablar/escuchar
 *.wav
@@ -31,3 +32,8 @@ pruebas.md
 release/
 # Local Pi runtime state
 .atl/
+logs/
+
+# Archivos de entorno y credenciales locales
+.env
+.env.*

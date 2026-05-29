@@ -142,6 +142,22 @@ func (t *OpenAppTool) findBestAppMatch(query string) (string, bool) {
 	}
 	defer rows.Close()
 
+	stopwords := map[string]bool{
+		"el": true, "la": true, "los": true, "las": true,
+		"un": true, "una": true, "unos": true, "unas": true,
+		"de": true, "del": true, "al": true,
+		"y": true, "o": true, "e": true, "u": true,
+		"en": true, "es": true, "con": true, "por": true, "para": true,
+		"se": true, "me": true, "te": true, "le": true, "lo": true,
+		"nos": true, "les": true, "os": true,
+		"que": true, "qué": true, "como": true, "cómo": true,
+		"si": true, "sí": true, "no": true,
+		"mi": true, "mis": true, "su": true, "sus": true, "tu": true, "tus": true,
+		"este": true, "esta": true, "esto": true, "estos": true, "estas": true,
+		"ser": true, "estar": true, "hacer": true, "ir": true,
+		"a": true, "an": true, "the": true, "and": true, "or": true, "is": true, "are": true, "it": true,
+	}
+
 	var bestMatch string
 	var maxScore int = 0
 	queryTokens := strings.Fields(query)
@@ -165,22 +181,46 @@ func (t *OpenAppTool) findBestAppMatch(query string) (string, bool) {
 			if token == "" || len(token) < 2 {
 				continue
 			}
-			if strings.Contains(nameLower, token) {
-				score += 3
+			if stopwords[token] {
+				continue
 			}
-			if strings.Contains(displayLower, token) {
-				score += 2
-			}
-			if strings.Contains(execLower, token) {
-				score += 3
+
+			// Para tokens cortos (longitud <= 3), evitar coincidencia de subcadenas en medio de palabras
+			if len(token) <= 3 {
+				baseExec := execLower
+				if idx := strings.LastIndex(execLower, "/"); idx != -1 {
+					baseExec = execLower[idx+1:]
+				}
+				if nameLower == token || strings.HasPrefix(nameLower, token) {
+					score += 3
+				}
+				if displayLower == token || strings.HasPrefix(displayLower, token) {
+					score += 2
+				}
+				if baseExec == token || strings.HasPrefix(baseExec, token) {
+					score += 3
+				}
+			} else {
+				if strings.Contains(nameLower, token) {
+					score += 3
+				}
+				if strings.Contains(displayLower, token) {
+					score += 2
+				}
+				if strings.Contains(execLower, token) {
+					score += 3
+				}
 			}
 		}
 
-		if strings.Contains(displayLower, query) || strings.Contains(query, displayLower) {
-			score += 5
-		}
-		if strings.Contains(nameLower, query) || strings.Contains(query, nameLower) {
-			score += 5
+		// Solo aplicar coincidencia completa de consulta si la consulta entera no es un stopword y no es extremadamente corta
+		if !stopwords[query] && len(query) > 3 {
+			if strings.Contains(displayLower, query) || strings.Contains(query, displayLower) {
+				score += 5
+			}
+			if strings.Contains(nameLower, query) || strings.Contains(query, nameLower) {
+				score += 5
+			}
 		}
 
 		if score > maxScore {

@@ -129,7 +129,6 @@ func (m *EventMapper) mapEvent(ev UIEvent) *VisualUpdate {
 		st := HUDSleeping
 		state = &st
 		m.isAwake = false
-		visible = &visFalse
 		m.queue.ClearConfirmations() // Limpiar confirmaciones al dormir
 
 	case "agent.thinking":
@@ -159,7 +158,6 @@ func (m *EventMapper) mapEvent(ev UIEvent) *VisualUpdate {
 		} else {
 			st := HUDSleeping
 			state = &st
-			visible = &visFalse
 		}
 
 	case "daemon.error":

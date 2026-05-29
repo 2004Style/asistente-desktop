@@ -44,16 +44,14 @@ func TestBuildRegistrySkipsMissingSecretProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildRegistry failed: %v", err)
 	}
-	if _, ok := result.Registry.Get("openai"); ok {
-		t.Fatal("expected openai provider skipped when secret is missing")
-	}
-	if len(result.Warnings) == 0 {
-		t.Fatal("expected warning for missing secret")
+	if _, ok := result.Registry.Get("openai"); !ok {
+		t.Fatal("expected openai provider registered even when secret is missing (registered with empty credentials)")
 	}
 }
 
 func TestBuildRegistryActiveModelOverride(t *testing.T) {
 	providers := config.DefaultProvidersConfig()
+	providers.ActiveProfile = "local_fast"
 	providers.ActiveProvider = "ollama"
 	providers.ActiveModel = "qwen-custom"
 
@@ -64,6 +62,9 @@ func TestBuildRegistryActiveModelOverride(t *testing.T) {
 	p, ok := result.Registry.Get("ollama")
 	if !ok {
 		t.Fatal("expected ollama provider registered")
+	}
+	if result.ActiveProfile != "local_fast" {
+		t.Fatalf("expected local_fast active profile, got %q", result.ActiveProfile)
 	}
 	if p.ModelID() != "qwen-custom" {
 		t.Fatalf("expected active model override, got %q", p.ModelID())

@@ -10,8 +10,11 @@ import (
 
 type ProviderFileConfig struct {
 	ConfigFile     string `yaml:"config_file"`
+	Version        int    `yaml:"version,omitempty"`
+	ActiveProfile  string `yaml:"active_profile,omitempty"`
 	ActiveProvider string `yaml:"active_provider"`
 	ActiveModel    string `yaml:"active_model"`
+	ActiveAuthMode string `yaml:"active_auth_mode,omitempty"`
 }
 
 type Config struct {
@@ -72,6 +75,7 @@ type Config struct {
 		BlockedPaths    []string `yaml:"blocked_paths"`
 	} `yaml:"security"`
 	Voice struct {
+		Engine         string  `yaml:"engine"`
 		PiperModel     string  `yaml:"piper_model"`
 		WhisperModel   string  `yaml:"whisper_model"`
 		VadThreshold   float64 `yaml:"vad_threshold"`
@@ -241,8 +245,11 @@ func DefaultConfig() *Config {
 	defaultConfig.Model.ToolCalling = true
 
 	defaultConfig.Providers.ConfigFile = "config/providers.yaml"
+	defaultConfig.Providers.Version = 2
+	defaultConfig.Providers.ActiveProfile = "local_fast"
 	defaultConfig.Providers.ActiveProvider = "ollama"
 	defaultConfig.Providers.ActiveModel = "qwen2.5:7b"
+	defaultConfig.Providers.ActiveAuthMode = "none"
 
 	defaultConfig.Database.Provider = "sqlite"
 	defaultConfig.Database.Path = "~/.local/share/rbot/rbot.db"
@@ -280,6 +287,7 @@ func DefaultConfig() *Config {
 	defaultConfig.Security.ConfirmHighRisk = true
 	defaultConfig.Security.BlockedPaths = defaultBlockedPaths()
 
+	defaultConfig.Voice.Engine = "whisper"
 	defaultConfig.Voice.PiperModel = "~/.local/share/rbot/models/piper/es_ES-davefx-medium.onnx"
 	defaultConfig.Voice.WhisperModel = "~/.local/share/rbot/models/whisper/ggml-tiny.bin"
 	defaultConfig.Voice.VadThreshold = 550.0

@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-BUILD_HUD="${BUILD_HUD:-0}"
-LAUNCH_SETTINGS="${LAUNCH_SETTINGS:-1}"
+export BUILD_HUD="${BUILD_HUD:-1}"
+export LAUNCH_SETTINGS="${LAUNCH_SETTINGS:-0}"
 
 printf '== RBot dev runner ==\n'
 printf 'root: %s\n' "$ROOT_DIR"

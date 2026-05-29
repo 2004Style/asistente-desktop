@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libx11-dev \
+            libx11-xcb-dev \
+            libxkbcommon-x11-dev \
+            libxkbcommon-dev \
+            libwayland-dev \
+            libgles2-mesa-dev \
+            libegl1-mesa-dev \
+            libffi-dev \
+            libgtk-3-dev \
+            pkg-config
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Compile Linux Binaries
+        run: |
+          mkdir -p build/rbot-linux-amd64/bin
+          mkdir -p build/rbot-linux-amd64/share/rbot
+          mkdir -p build/rbot-linux-amd64/config/rbot
+          mkdir -p build/rbot-linux-amd64/systemd
+          mkdir -p build/rbot-linux-amd64/scripts
+
+          go build -ldflags="-w -s" -o build/rbot-linux-amd64/bin/rbot ./cmd/rbot
+          go build -ldflags="-w -s" -o build/rbot-linux-amd64/bin/rbotd ./cmd/rbotd
+          go build -ldflags="-w -s" -o build/rbot-linux-amd64/bin/rbotctl ./cmd/rbotctl
+          go build -ldflags="-w -s" -o build/rbot-linux-amd64/bin/rbot-settings-gio ./cmd/rbot-settings-gio
+          go build -tags "gtk_3_18 hud" -ldflags="-w -s" -o build/rbot-linux-amd64/bin/rbot-hud ./cmd/rbot-hud
+
+      - name: Package Linux Release
+        run: |
+          # Copiar recursos
+          cp -r skills build/rbot-linux-amd64/share/rbot/
+          cp config/rbot.yaml build/rbot-linux-amd64/config/rbot/
+          cp mcp/mcp_config.json build/rbot-linux-amd64/config/rbot/
+          cp README.md build/rbot-linux-amd64/
+          cp install.sh build/rbot-linux-amd64/
+          cp -r scripts/* build/rbot-linux-amd64/scripts/
+          if [ -d systemd ]; then
+            cp systemd/*.service build/rbot-linux-amd64/systemd/ || true
+          fi
+
+          # Empaquetar
+          cd build
+          tar -czf ../rbot-linux-amd64.tar.gz rbot-linux-amd64
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbot-linux-amd64
+          path: rbot-linux-amd64.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Compile Windows Binaries
+        shell: bash
+        run: |
+          mkdir -p build/rbot-windows-amd64/bin
+          mkdir -p build/rbot-windows-amd64/share/rbot
+          mkdir -p build/rbot-windows-amd64/config/rbot
+
+          go build -ldflags="-w -s -H=windowsgui" -o build/rbot-windows-amd64/bin/rbot-settings-gio.exe ./cmd/rbot-settings-gio
+          go build -ldflags="-w -s" -o build/rbot-windows-amd64/bin/rbot.exe ./cmd/rbot
+          go build -ldflags="-w -s" -o build/rbot-windows-amd64/bin/rbotd.exe ./cmd/rbotd
+          go build -ldflags="-w -s" -o build/rbot-windows-amd64/bin/rbotctl.exe ./cmd/rbotctl
+
+      - name: Package Windows Release
+        shell: bash
+        run: |
+          # Copiar recursos
+          cp -r skills build/rbot-windows-amd64/share/rbot/
+          cp config/rbot.yaml build/rbot-windows-amd64/config/rbot/
+          cp mcp/mcp_config.json build/rbot-windows-amd64/config/rbot/
+          cp README.md build/rbot-windows-amd64/
+
+          # Empaquetar
+          cd build
+          powershell Compress-Archive -Path rbot-windows-amd64 -DestinationPath ../rbot-windows-amd64.zip
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rbot-windows-amd64
+          path: rbot-windows-amd64.zip
+
+  publish:
+    name: Publish Release
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rbot-linux-amd64
+          path: .
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rbot-windows-amd64
+          path: .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            rbot-linux-amd64.tar.gz
+            rbot-windows-amd64.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

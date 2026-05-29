@@ -14,6 +14,9 @@ func TestLoadProvidersConfigCreatesSafeDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadProvidersConfig failed: %v", err)
 	}
+	if conf.ActiveProfile != "local_fast" {
+		t.Fatalf("expected local_fast active profile, got %q", conf.ActiveProfile)
+	}
 	if conf.ActiveProvider != "ollama" {
 		t.Fatalf("expected ollama active provider, got %q", conf.ActiveProvider)
 	}
@@ -25,6 +28,9 @@ func TestLoadProvidersConfigCreatesSafeDefaults(t *testing.T) {
 	}
 	if conf.Providers["openai"].SecretRef != "env:OPENAI_API_KEY" {
 		t.Fatalf("expected secret ref, got %q", conf.Providers["openai"].SecretRef)
+	}
+	if _, ok := conf.Profiles["openai_api"]; !ok {
+		t.Fatal("expected openai_api profile to exist")
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("expected providers config to be written: %v", err)
@@ -52,13 +58,22 @@ providers:
 	if err != nil {
 		t.Fatalf("LoadProvidersConfig failed: %v", err)
 	}
+	if conf.ActiveProfile != "openai_api" {
+		t.Fatalf("expected openai_api active profile, got %q", conf.ActiveProfile)
+	}
 	if conf.ActiveProvider != "openai" {
 		t.Fatalf("expected openai active provider, got %q", conf.ActiveProvider)
+	}
+	if conf.ActiveModel != "gpt-test" {
+		t.Fatalf("expected active model to preserve legacy override, got %q", conf.ActiveModel)
 	}
 	if !conf.Providers["openai"].Enabled {
 		t.Fatal("expected openai enabled")
 	}
 	if _, ok := conf.Providers["ollama"]; !ok {
 		t.Fatal("expected default ollama provider retained when YAML is partial")
+	}
+	if _, ok := conf.Profiles["local_fast"]; !ok {
+		t.Fatal("expected default local_fast profile retained when YAML is partial")
 	}
 }

@@ -6,10 +6,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -37,6 +36,7 @@ import (
 	remindersTools "rbot/internal/tools/reminders"
 	systemTools "rbot/internal/tools/system"
 	tasksTools "rbot/internal/tools/tasks"
+	llmTools "rbot/internal/tools/llm"
 	"rbot/internal/workspace"
 )
 
@@ -57,9 +57,10 @@ type Orchestrator struct {
 	Executor            *executor.Executor
 	GetWorkspaceContext func() *workspace.WorkspaceContext
 	OnTextChunk         func(string) // Callback para streaming de texto
+	EventPublisher      executor.EventPublisher
 }
 
-func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerManager, blockedPaths []string, allowedRoots []string, agentName string, cfg *config.Config) *Orchestrator {
+func NewOrchestrator(db *sql.DB, llmManager *llm.Manager, providersConf *config.ProvidersConfig, mcpManager *mcp.ServerManager, blockedPaths []string, allowedRoots []string, agentName string, cfg *config.Config) *Orchestrator {
 	if agentName == "" {
 		agentName = "RBot"
 	}
@@ -78,6 +79,11 @@ func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerMa
 	_ = inputTools.RegisterTools(reg)
 	_ = mediaTools.RegisterTools(reg)
 
+	// Registrar herramientas de gestión de LLM
+	if llmManager != nil && providersConf != nil && cfg != nil {
+		_ = llmTools.RegisterTools(reg, llmManager, providersConf, cfg.Providers.ConfigFile)
+	}
+
 	// Registrar herramientas de productividad si la configuración está disponible
 	if cfg != nil {
 		nm := notificationsTools.NewNotificationManager(db, nil, cfg)
@@ -87,9 +93,14 @@ func NewOrchestrator(db *sql.DB, provider llm.Provider, mcpManager *mcp.ServerMa
 		_ = meetingsTools.RegisterTools(reg, db, cfg)
 	}
 
+	var activeProvider llm.Provider
+	if llmManager != nil {
+		activeProvider = llmManager.Active()
+	}
+
 	return &Orchestrator{
 		DB:           db,
-		LLM:          provider,
+		LLM:          activeProvider,
 		MCP:          mcpManager,
 		BlockedPaths: blockedPaths,
 		AllowedRoots: allowedRoots,
@@ -103,6 +114,7 @@ func (o *Orchestrator) SetEventPublisher(ep executor.EventPublisher) {
 	if o.Executor != nil {
 		o.Executor.Events = ep
 	}
+	o.EventPublisher = ep
 }
 
 // BuildSystemPrompt genera el prompt con memoria de usuario, habilidades/skills activas y metadatos del sistema en tiempo real
@@ -270,8 +282,99 @@ func (o *Orchestrator) matchShortcut(userInput string) *workspace.Shortcut {
 	return nil
 }
 
+func (o *Orchestrator) processWindowCommands(userInput string) (string, bool) {
+	clean := strings.ToLower(strings.TrimSpace(userInput))
+	clean = strings.TrimFunc(clean, func(r rune) bool {
+		return r == ',' || r == '.' || r == '!' || r == '?' || r == '¿' || r == '¡'
+	})
+
+	isOpen := false
+	isClose := false
+	isHUD := false
+	isSettings := false
+
+	if strings.Contains(clean, "ajustes") || strings.Contains(clean, "configuracion") || strings.Contains(clean, "configuración") || strings.Contains(clean, "configuraciones") || strings.Contains(clean, "control") {
+		isSettings = true
+	} else if strings.Contains(clean, "hud") || strings.Contains(clean, "pantalla principal") || strings.Contains(clean, "panel") || strings.Contains(clean, "esfera") {
+		isHUD = true
+	}
+
+	if strings.Contains(clean, "abre") || strings.Contains(clean, "abrir") || strings.Contains(clean, "muestra") || strings.Contains(clean, "mostrar") || strings.Contains(clean, "enseña") || strings.Contains(clean, "enseñar") {
+		isOpen = true
+	} else if strings.Contains(clean, "cierra") || strings.Contains(clean, "cerrar") || strings.Contains(clean, "oculta") || strings.Contains(clean, "ocultar") || strings.Contains(clean, "quita") || strings.Contains(clean, "quitar") || strings.Contains(clean, "apaga") || strings.Contains(clean, "apagar") {
+		isClose = true
+	}
+
+	if clean == "configuración" || clean == "configuracion" || clean == "ajustes" || clean == "control" || clean == "panel de control" {
+		isOpen = true
+		isSettings = true
+	}
+
+	if clean == "panel" || clean == "esfera" {
+		isOpen = true
+		isHUD = true
+	}
+
+	if isSettings {
+		if isOpen {
+			log.Println("[Orchestrator] Comando de voz detectado: abriendo configuración...")
+			go func() {
+				cmdPath := "rbot-settings-gio"
+				if _, err := os.Stat("bin/rbot-settings-gio"); err == nil {
+					cmdPath = "./bin/rbot-settings-gio"
+				}
+				_ = exec.Command(cmdPath).Start()
+			}()
+			return "Entendido señor, abriendo el panel de configuración.", true
+		}
+		if isClose {
+			log.Println("[Orchestrator] Comando de voz detectado: cerrando configuración...")
+			go func() {
+				_ = exec.Command("killall", "rbot-settings-gio").Run()
+			}()
+			return "Entendido señor, cerrando el panel de configuración.", true
+		}
+	}
+
+	if isHUD {
+		if isOpen {
+			log.Println("[Orchestrator] Comando de voz detectado: mostrando HUD...")
+			if o.EventPublisher != nil {
+				o.EventPublisher.Publish("hud.show", nil)
+			}
+			go func() {
+				if err := exec.Command("pgrep", "rbot-hud").Run(); err != nil {
+					cmdPath := "rbot-hud"
+					if _, err := os.Stat("bin/rbot-hud"); err == nil {
+						cmdPath = "./bin/rbot-hud"
+					}
+					_ = exec.Command(cmdPath).Start()
+				}
+			}()
+			return "Entendido señor, mostrando el panel principal.", true
+		}
+		if isClose {
+			log.Println("[Orchestrator] Comando de voz detectado: ocultando HUD...")
+			if o.EventPublisher != nil {
+				o.EventPublisher.Publish("hud.hide", nil)
+			}
+			return "Entendido señor, ocultando el panel principal.", true
+		}
+	}
+
+	return "", false
+}
+
 // Chat realiza un paso conversacional resolviendo llamadas a herramientas si Ollama las requiere.
 func (o *Orchestrator) Chat(ctx context.Context, userInput string, history []llm.Message) (string, error) {
+	// Interceptar primero comandos de ventana antes de cualquier validación
+	if resp, ok := o.processWindowCommands(userInput); ok {
+		return resp, nil
+	}
+
+	if o.LLM == nil {
+		return "No ha configurado aún ningún proveedor de inteligencia artificial. Por favor, abra los ajustes para configurar su proveedor local o en la nube.", nil
+	}
 	// Detectar si la entrada coincide con algún shortcut del workspace
 	if shortcut := o.matchShortcut(userInput); shortcut != nil {
 		log.Printf("[Orchestrator] Coincidencia con shortcut del workspace: '%s'. Ejecutando pasos...", shortcut.Name)
@@ -987,7 +1090,7 @@ func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 	}
 
 	// --- 3. Detección individual clásica optimizada
-	// 3.1. YouTube Play / Search / Reproducción de Música
+	// 3.1. YouTube Play / Reproducción de Música
 	isYouTubeOpenOnly := (cleaned == "youtube" || cleaned == "youtube.com") &&
 		(strings.HasPrefix(inputLower, "abre") || strings.HasPrefix(inputLower, "abrir") || strings.HasPrefix(inputLower, "entra") || strings.HasPrefix(inputLower, "ir a"))
 
@@ -1002,6 +1105,12 @@ func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 			isPlayMusicIntent = true
 			break
 		}
+	}
+
+	// Forzar reproducción directa si el comando menciona youtube y no es solo abrir la web
+	hasYouTube := strings.Contains(inputLower, "youtube") || strings.Contains(inputLower, "yutub") || strings.Contains(inputLower, "yutú")
+	if hasYouTube && !isYouTubeOpenOnly {
+		isPlayMusicIntent = true
 	}
 
 	if !isYouTubeOpenOnly && isPlayMusicIntent {
@@ -1022,29 +1131,107 @@ func (o *Orchestrator) detectDirectIntents(userInput string) []DirectAction {
 			return []DirectAction{{ToolName: "browser.youtube_play", Args: map[string]interface{}{"query": "cumbia o bachata"}}}
 		}
 
-		// Extraer consulta limpia quitando sufijos de youtube
+		// Extraer consulta limpia quitando sufijos de youtube y prefijos de acción
 		query := cleaned
-		for _, suf := range []string{" en youtube", " en el youtube", " en youtube.com", " youtube"} {
+		for _, suf := range []string{" en youtube", " en el youtube", " en youtube.com", " youtube", " yutub", " yutú"} {
 			if strings.HasSuffix(query, suf) {
 				query = strings.TrimSuffix(query, suf)
 				break
 			}
 		}
-		for _, pref := range []string{"en youtube ", "en el youtube ", "en youtube.com "} {
-			if strings.HasPrefix(query, pref) {
-				query = strings.TrimPrefix(query, pref)
+		
+		// Remover múltiples prefijos redundantes
+		for {
+			prevQuery := query
+			for _, pref := range []string{
+				"en youtube ", "en el youtube ", "en youtube.com ", "en yutub ", "en yutú ",
+				"buscar ", "busca ", "encuentra ", "reproduce ", "reproducir ", "pon ", "poner ", "toca ", "tocar ", "escucha ", "escuchar ",
+			} {
+				if strings.HasPrefix(query, pref) {
+					query = strings.TrimPrefix(query, pref)
+				}
+			}
+			if query == prevQuery {
 				break
 			}
 		}
+
 		query = strings.TrimSpace(query)
 		if query != "" {
-			isSearch := strings.Contains(inputLower, "busca") || strings.Contains(inputLower, "buscar")
-			if isSearch {
-				return []DirectAction{{ToolName: "browser.youtube_search", Args: map[string]interface{}{"query": query}}}
-			} else {
-				return []DirectAction{{ToolName: "browser.youtube_play", Args: map[string]interface{}{"query": query}}}
-			}
+			// Siempre usar browser.youtube_play en lugar de youtube_search
+			return []DirectAction{{ToolName: "browser.youtube_play", Args: map[string]interface{}{"query": query}}}
 		}
+	}
+
+	// --- 3.1.5. Control de proveedores y modelos LLM en lenguaje natural ---
+	if inputLower == "lista mis providers" || inputLower == "lista providers" || inputLower == "qué providers hay" || inputLower == "qué providers tengo" {
+		return []DirectAction{{ToolName: "llm.list_providers", Args: map[string]interface{}{}}}
+	}
+
+	if inputLower == "lista mis modelos locales" || inputLower == "lista mis modelos" || inputLower == "lista modelos locales" || strings.Contains(inputLower, "lista mis modelos de ollama") || strings.Contains(inputLower, "lista los modelos de ollama") || strings.Contains(inputLower, "modelos de ollama") {
+		return []DirectAction{{ToolName: "llm.list_models", Args: map[string]interface{}{"provider": "ollama"}}}
+	}
+
+	if inputLower == "qué modelo estoy usando" || inputLower == "qué modelo usas" || inputLower == "qué modelo está activo" || inputLower == "modelo activo" ||
+		inputLower == "qué provider está activo" || inputLower == "qué provider usas" || inputLower == "provider activo" ||
+		inputLower == "qué modo de autenticación está activo" || inputLower == "qué auth está activa" || inputLower == "auth activa" {
+		return []DirectAction{{ToolName: "llm.get_status", Args: map[string]interface{}{}}}
+	}
+
+	if inputLower == "verifica si ollama está disponible" || inputLower == "verifica ollama" {
+		return []DirectAction{{ToolName: "llm.verify_provider", Args: map[string]interface{}{"provider": "ollama"}}}
+	}
+	if inputLower == "verifica si openai está configurado" || inputLower == "verifica openai" {
+		return []DirectAction{{ToolName: "llm.verify_provider", Args: map[string]interface{}{"provider": "openai"}}}
+	}
+
+	if inputLower == "usa openai con api key" || inputLower == "usa openai api key" || inputLower == "openai con api key" {
+		return []DirectAction{{ToolName: "llm.use_profile", Args: map[string]interface{}{"name": "openai_api"}}}
+	}
+	if inputLower == "usa mi cuenta de openai" || inputLower == "usa openai con cuenta" || inputLower == "openai con cuenta" {
+		return []DirectAction{{ToolName: "llm.use_profile", Args: map[string]interface{}{"name": "openai_account"}}}
+	}
+	if inputLower == "usa el perfil de código" || inputLower == "usa el perfil de codigo" || inputLower == "usa el perfil coder" {
+		return []DirectAction{{ToolName: "llm.use_profile", Args: map[string]interface{}{"name": "local_code"}}}
+	}
+	if strings.HasPrefix(inputLower, "usa el perfil ") {
+		profileName := strings.TrimPrefix(inputLower, "usa el perfil ")
+		profileName = strings.TrimSpace(profileName)
+		return []DirectAction{{ToolName: "llm.use_profile", Args: map[string]interface{}{"name": profileName}}}
+	}
+
+	if inputLower == "cambia a mistral" || inputLower == "cambia el modelo a mistral" || inputLower == "usa mistral" || inputLower == "cambia a mistral local" {
+		return []DirectAction{{ToolName: "llm.switch_model", Args: map[string]interface{}{"model": "mistral:latest"}}}
+	}
+	if inputLower == "usa qwen para tareas normales" || inputLower == "cambia a qwen" || inputLower == "usa qwen" {
+		return []DirectAction{{ToolName: "llm.switch_model", Args: map[string]interface{}{"model": "qwen2.5:7b"}}}
+	}
+	if inputLower == "usa el modelo coder" || inputLower == "usa qwen coder" || inputLower == "cambia a coder" {
+		return []DirectAction{{ToolName: "llm.switch_model", Args: map[string]interface{}{"model": "qwen2.5-coder:7b"}}}
+	}
+
+	if inputLower == "cambia a openai" || inputLower == "usa openai" {
+		return []DirectAction{{ToolName: "llm.use_provider", Args: map[string]interface{}{"provider": "openai"}}}
+	}
+	if inputLower == "vuelve a ollama" || inputLower == "usa ollama" || inputLower == "vuelve al modelo local" {
+		return []DirectAction{{ToolName: "llm.use_provider", Args: map[string]interface{}{"provider": "ollama"}}}
+	}
+
+	if inputLower == "crea un perfil para programar" || inputLower == "crea un perfil de código" || inputLower == "crear perfil de codigo" {
+		return []DirectAction{{ToolName: "llm.create_profile", Args: map[string]interface{}{
+			"name":        "local_code",
+			"provider":    "ollama",
+			"model":       "qwen2.5-coder:7b",
+			"description": "Perfil local para programar.",
+		}}}
+	}
+	if inputLower == "crea un perfil local rápido" || inputLower == "crear perfil local rapido" {
+		return []DirectAction{{ToolName: "llm.create_profile", Args: map[string]interface{}{
+			"name":        "local_fast",
+			"provider":    "ollama",
+			"model":       "qwen2.5:7b",
+			"description": "Perfil local rápido para tareas generales.",
+		}}}
 	}
 
 	// 3.2. Búsquedas generales en internet
@@ -1362,10 +1549,22 @@ func (o *Orchestrator) findBestAppMatch(query string) (string, bool) {
 	}
 	defer rows.Close()
 
-	type appScore struct {
-		executable string
-		score      int
+	stopwords := map[string]bool{
+		"el": true, "la": true, "los": true, "las": true,
+		"un": true, "una": true, "unos": true, "unas": true,
+		"de": true, "del": true, "al": true,
+		"y": true, "o": true, "e": true, "u": true,
+		"en": true, "es": true, "con": true, "por": true, "para": true,
+		"se": true, "me": true, "te": true, "le": true, "lo": true,
+		"nos": true, "les": true, "os": true,
+		"que": true, "qué": true, "como": true, "cómo": true,
+		"si": true, "sí": true, "no": true,
+		"mi": true, "mis": true, "su": true, "sus": true, "tu": true, "tus": true,
+		"este": true, "esta": true, "esto": true, "estos": true, "estas": true,
+		"ser": true, "estar": true, "hacer": true, "ir": true,
+		"a": true, "an": true, "the": true, "and": true, "or": true, "is": true, "are": true, "it": true,
 	}
+
 	var bestMatch string
 	var maxScore int = 0
 
@@ -1390,22 +1589,46 @@ func (o *Orchestrator) findBestAppMatch(query string) (string, bool) {
 			if token == "" || len(token) < 2 {
 				continue
 			}
-			if strings.Contains(nameLower, token) {
-				score += 3
+			if stopwords[token] {
+				continue
 			}
-			if strings.Contains(displayLower, token) {
-				score += 2
-			}
-			if strings.Contains(execLower, token) {
-				score += 3
+
+			// Para tokens cortos (longitud <= 3), evitar coincidencia de subcadenas en medio de palabras
+			if len(token) <= 3 {
+				baseExec := execLower
+				if idx := strings.LastIndex(execLower, "/"); idx != -1 {
+					baseExec = execLower[idx+1:]
+				}
+				if nameLower == token || strings.HasPrefix(nameLower, token) {
+					score += 3
+				}
+				if displayLower == token || strings.HasPrefix(displayLower, token) {
+					score += 2
+				}
+				if baseExec == token || strings.HasPrefix(baseExec, token) {
+					score += 3
+				}
+			} else {
+				if strings.Contains(nameLower, token) {
+					score += 3
+				}
+				if strings.Contains(displayLower, token) {
+					score += 2
+				}
+				if strings.Contains(execLower, token) {
+					score += 3
+				}
 			}
 		}
 
-		if strings.Contains(displayLower, query) || strings.Contains(query, displayLower) {
-			score += 5
-		}
-		if strings.Contains(nameLower, query) || strings.Contains(query, nameLower) {
-			score += 5
+		// Solo aplicar coincidencia completa de consulta si la consulta entera no es un stopword y no es extremadamente corta
+		if !stopwords[query] && len(query) > 3 {
+			if strings.Contains(displayLower, query) || strings.Contains(query, displayLower) {
+				score += 5
+			}
+			if strings.Contains(nameLower, query) || strings.Contains(query, nameLower) {
+				score += 5
+			}
 		}
 
 		if score > maxScore {
@@ -1421,37 +1644,6 @@ func (o *Orchestrator) findBestAppMatch(query string) (string, bool) {
 	return "", false
 }
 
-func getFirstYouTubeVideo(query string) string {
-	searchURL := fmt.Sprintf("https://www.youtube.com/results?search_query=%s", strings.ReplaceAll(query, " ", "+"))
-
-	req, err := http.NewRequest("GET", searchURL, nil)
-	if err != nil {
-		return searchURL
-	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-
-	client := &http.Client{Timeout: 4 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return searchURL
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return searchURL
-	}
-
-	bodyStr := string(bodyBytes)
-
-	re := regexp.MustCompile(`/watch\?v=[a-zA-Z0-9_-]{11}`)
-	match := re.FindString(bodyStr)
-	if match != "" {
-		return "https://www.youtube.com" + match
-	}
-
-	return searchURL
-}
 
 func (o *Orchestrator) resolveAmbiguityInteractive(query string, matches []string) (string, error) {
 	if len(matches) == 1 {

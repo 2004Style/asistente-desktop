@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"rbot/internal/executor"
@@ -40,6 +41,18 @@ func (t *RunCommandSafeTool) Execute(ctx context.Context, args map[string]interf
 	command, _ := args["command"].(string)
 	if command == "" {
 		return nil, fmt.Errorf("el argumento 'command' es obligatorio")
+	}
+
+	// Validar comando xdg-open para evitar asociaciones MIME erróneas que abran AnyDesk u otras apps locales
+	if strings.Contains(command, "xdg-open") {
+		if !strings.Contains(command, "http://") && !strings.Contains(command, "https://") {
+			return &executor.ToolResult{
+				Success:    false,
+				Error:      "Bloqueado por política de seguridad: xdg-open solo puede abrir enlaces web válidos (http:// o https://) para evitar la apertura accidental de aplicaciones locales como AnyDesk.",
+				StartedAt:  started,
+				FinishedAt: time.Now(),
+			}, nil
+		}
 	}
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)

@@ -426,6 +426,13 @@ CREATE TABLE IF NOT EXISTS llm_models_cache (
 CREATE INDEX IF NOT EXISTS idx_llm_models_cache_provider ON llm_models_cache(provider_name);
 `,
 	},
+	{
+		Version: 8,
+		Name:     "llm_active_profile",
+		SQL: `
+ALTER TABLE llm_providers ADD COLUMN active_profile TEXT DEFAULT '';
+`,
+	},
 }
 
 func RunMigrations(db *sql.DB) error {

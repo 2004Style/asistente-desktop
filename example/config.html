@@ -1,0 +1,1450 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RBot · Ajustes IA HUD</title>
+
+    <style>
+      :root {
+        --bg: #02050b;
+        --panel: rgba(6, 27, 47, 0.897);
+        --panel-soft: rgba(7, 26, 45, 0.54);
+        --line: rgba(150, 245, 255, 0.14);
+        --line-2: rgba(255, 255, 255, 0.055);
+        --cyan: #00f5ff;
+        --cyan-soft: rgba(0, 245, 255, 0.12);
+        --green: #00ff9d;
+        --blue: #2f6bff;
+        --red: #ff3b64;
+        --yellow: #ffd166;
+        --text: #eaffff;
+        --muted: rgba(234, 255, 255, 0.58);
+        --muted-2: rgba(234, 255, 255, 0.34);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        overflow: hidden;
+        color: var(--text);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+        background: #010204;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+        cursor: pointer;
+      }
+
+      .app {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background: rgba(2, 8, 18, 0.82);
+      }
+
+      .topbar {
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 22px;
+        background: rgba(1, 8, 18, 0.76);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+        box-shadow: 0 0 46px rgba(0, 245, 255, 0.06);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 36px;
+        height: 36px;
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        color: #001018;
+        font-weight: 950;
+        background: #ffff;
+        box-shadow: 0 0 30px rgba(0, 245, 255, 0.42);
+        clip-path: polygon(18% 0, 82% 0, 100% 18%, 100% 82%, 82% 100%, 18% 100%, 0 82%, 0 18%);
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .brand span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .top-status {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+
+      .daemon {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: rgba(234, 255, 255, 0.8);
+        font-size: 11px;
+        font-weight: 850;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .daemon::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        background: var(--green);
+        box-shadow: 0 0 18px var(--green);
+        clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+      }
+
+      .window-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .window-btn {
+        width: 38px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.055);
+        clip-path: polygon(12% 0, 100% 0, 88% 100%, 0 100%);
+        font-size: 13px;
+      }
+
+      .window-btn.close {
+        color: rgba(255, 90, 120, 0.9);
+      }
+
+      .shell {
+        height: calc(100vh - 64px);
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr) 340px;
+        gap: 12px;
+        padding: 12px;
+        overflow: hidden;
+      }
+
+      .col {
+        min-height: 0;
+        display: grid;
+        gap: 12px;
+        overflow: hidden;
+      }
+
+      .left-col {
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .center-col {
+        grid-template-rows: auto minmax(0, 1fr) auto;
+      }
+
+      .right-col {
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+      }
+
+      .panel {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        padding: 14px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        box-shadow:
+          inset 0 0 0 1px rgba(255, 255, 255, 0.028),
+          0 0 36px rgba(0, 245, 255, 0.055);
+      }
+
+      .panel-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 12px;
+        color: var(--muted);
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .panel-title strong {
+        color: var(--cyan);
+        font-size: 11px;
+      }
+
+      .mode-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .btn {
+        min-height: 40px;
+        display: grid;
+        place-items: center;
+        padding: 9px 10px;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        text-transform: uppercase;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+      }
+
+      .btn:hover {
+        color: var(--text);
+        border-color: rgba(0, 245, 255, 0.44);
+      }
+
+      .btn.active {
+        color: #001018;
+        background: linear-gradient(135deg, rgba(0, 255, 157, 0.86), rgba(0, 245, 255, 0.92));
+        border-color: rgba(255, 255, 255, 0.18);
+      }
+
+      .tools {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .search,
+      .field {
+        width: 100%;
+        height: 38px;
+        border: 0;
+        outline: 0;
+        padding: 0 12px;
+        color: var(--text);
+        background: rgba(0, 0, 0, 0.26);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        font-size: 12px;
+      }
+
+      .search::placeholder,
+      .field::placeholder {
+        color: rgba(234, 255, 255, 0.34);
+      }
+
+      .search:focus,
+      .field:focus {
+        border-color: rgba(0, 245, 255, 0.56);
+        box-shadow: 0 0 18px rgba(0, 245, 255, 0.12);
+      }
+
+      .counter {
+        height: 38px;
+        min-width: 88px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        color: var(--muted);
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.052);
+        font-size: 10px;
+        font-weight: 850;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .scroll {
+        min-height: 0;
+        overflow: auto;
+      }
+
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 245, 255, 0.52) rgba(255, 255, 255, 0.035);
+      }
+
+      *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      *::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      *::-webkit-scrollbar-thumb {
+        background: linear-gradient(var(--green), var(--cyan), var(--blue));
+      }
+
+      .provider-list,
+      .model-list {
+        display: grid;
+        gap: 8px;
+        padding-right: 6px;
+      }
+
+      .provider-item {
+        min-height: 58px;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) 24px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        color: var(--muted);
+        background: linear-gradient(90deg, rgba(0, 245, 255, 0.052), transparent 72%), rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        text-align: left;
+      }
+
+      .provider-item:hover,
+      .model:hover {
+        border-color: rgba(0, 245, 255, 0.42);
+        box-shadow: 0 0 18px rgba(0, 245, 255, 0.08);
+      }
+
+      .provider-item.active,
+      .model.active {
+        background: linear-gradient(90deg, rgba(0, 255, 157, 0.18), rgba(0, 245, 255, 0.18), transparent 88%), rgba(0, 0, 0, 0.24);
+        border-color: rgba(0, 245, 255, 0.72);
+        box-shadow: 0 0 22px rgba(0, 245, 255, 0.13);
+      }
+
+      .provider-icon {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        color: var(--cyan);
+        background: rgba(0, 245, 255, 0.08);
+        border: 1px solid rgba(0, 245, 255, 0.18);
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .provider-item.active .provider-icon {
+        color: #001018;
+        background: linear-gradient(135deg, var(--green), var(--cyan));
+      }
+
+      .provider-name {
+        min-width: 0;
+      }
+
+      .provider-name strong {
+        display: block;
+        color: rgba(234, 255, 255, 0.88);
+        font-size: 12px;
+        margin-bottom: 4px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .provider-name span {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .check {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        color: transparent;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.052);
+        font-weight: 950;
+      }
+
+      .provider-item.active .check,
+      .model.active .check {
+        color: #001018;
+        background: linear-gradient(135deg, var(--green), var(--cyan));
+      }
+
+      .auth-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 8px;
+      }
+
+      .credential-area {
+        margin-top: 10px;
+        display: grid;
+        gap: 8px;
+      }
+
+      .line {
+        min-height: 40px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 11px;
+        color: rgba(234, 255, 255, 0.82);
+        background: rgba(0, 0, 0, 0.24);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        font-size: 12px;
+        min-width: 0;
+      }
+
+      .line b {
+        color: var(--green);
+      }
+
+      .line span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .danger {
+        min-height: 40px;
+        color: rgba(255, 255, 255, 0.9);
+        background: rgba(168, 20, 38, 0.84);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .model-panel {
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .model-tools {
+        display: grid;
+        grid-template-columns: 1fr 150px;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .model {
+        min-height: 58px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 24px;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 12px;
+        color: var(--muted);
+        background: rgba(166, 0, 255, 0.099);
+        border: 1px solid rgba(255, 255, 255, 0.055);
+        text-align: left;
+      }
+
+      .model strong {
+        display: block;
+        margin-bottom: 5px;
+        color: rgba(234, 255, 255, 0.86);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .model span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .metric {
+        min-height: 62px;
+        display: grid;
+        align-content: center;
+        gap: 5px;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.052);
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        min-width: 0;
+        color: var(--text);
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .metric.cost strong {
+        color: var(--yellow);
+      }
+
+      .summary-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .summary-line {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.052);
+      }
+
+      .summary-icon {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        color: var(--cyan);
+        background: rgba(0, 245, 255, 0.08);
+        border: 1px solid rgba(0, 245, 255, 0.14);
+        font-weight: 900;
+      }
+
+      .summary-line span {
+        display: block;
+        color: var(--muted);
+        font-size: 9px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+      }
+
+      .summary-line strong {
+        display: block;
+        color: var(--text);
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .summary-line small {
+        display: block;
+        color: var(--muted-2);
+        font-size: 11px;
+        margin-top: 3px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .progress {
+        height: 7px;
+        margin-top: 6px;
+        background: rgba(255, 255, 255, 0.07);
+        overflow: hidden;
+      }
+
+      .progress > i {
+        display: block;
+        height: 100%;
+        width: 11.6%;
+        background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+        box-shadow: 0 0 20px rgba(0, 245, 255, 0.4);
+      }
+
+      .config-preview {
+        font-family: "JetBrains Mono", "Fira Code", monospace;
+        font-size: 11px;
+        line-height: 1.5;
+        color: rgba(234, 255, 255, 0.75);
+        white-space: pre-wrap;
+      }
+
+      .config-preview b {
+        color: var(--cyan);
+      }
+
+      .actions {
+        display: grid;
+        gap: 8px;
+      }
+
+      .action-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .action {
+        min-height: 42px;
+        display: grid;
+        place-items: center;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .action.secondary {
+        color: var(--cyan);
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(0, 245, 255, 0.42);
+      }
+
+      .action.primary {
+        color: #001018;
+        background: linear-gradient(135deg, var(--green), var(--cyan));
+        box-shadow: 0 0 30px rgba(0, 245, 255, 0.24);
+      }
+
+      .log-line {
+        min-height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        color: rgba(234, 255, 255, 0.78);
+        background: rgba(0, 0, 0, 0.22);
+        border: 1px solid rgba(255, 255, 255, 0.052);
+        font-size: 12px;
+      }
+
+      .log-line .ok {
+        color: var(--green);
+      }
+
+      .notice {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <div>
+            <h1>Ajustes Rbot</h1>
+            <span>RBot Settings · Provider Control HUD</span>
+          </div>
+        </div>
+
+        <div class="top-status">
+          <div class="daemon">Conectado a Daemon</div>
+          <div class="window-actions">
+            <div class="window-btn">—</div>
+            <div class="window-btn">□</div>
+            <div class="window-btn close">×</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="shell">
+        <aside class="col left-col">
+          <section class="panel">
+            <div class="panel-title">
+              <strong>Tipo de conexión</strong>
+            </div>
+
+            <div class="mode-grid">
+              <button class="btn" data-mode="local">Local</button>
+              <button class="btn active" data-mode="cloud">Cloud</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <strong id="providerTitle">Proveedores</strong>
+            </div>
+
+            <div class="tools">
+              <input class="search" id="providerSearch" type="text" placeholder="Buscar proveedor..." />
+              <div class="counter" id="providerCounter">0</div>
+            </div>
+
+            <div class="scroll">
+              <div class="provider-list" id="providerList"></div>
+            </div>
+          </section>
+        </aside>
+
+        <main class="col center-col">
+          <section class="panel">
+            <div class="panel-title">
+              <strong>Autenticación y credenciales</strong>
+            </div>
+
+            <div class="auth-grid" id="authButtons"></div>
+            <div class="credential-area" id="credentialArea"></div>
+          </section>
+
+          <section class="panel model-panel">
+            <div>
+              <div class="panel-title">
+                <strong>Modelos disponibles</strong>
+                <span id="modelsHint">models.list / fallback</span>
+              </div>
+
+              <div class="model-tools">
+                <input class="search" id="modelSearch" type="text" placeholder="Filtrar modelo..." />
+                <div class="counter" id="modelCounter">0</div>
+              </div>
+            </div>
+
+            <div class="scroll">
+              <div class="model-list" id="modelList"></div>
+            </div>
+          </section>
+
+          <section class="panel actions">
+            <div class="log-line" id="logger">
+              <span class="ok">✓</span>
+              <span>Listo · Selecciona conexión, proveedor, autenticación y modelo.</span>
+            </div>
+          </section>
+        </main>
+
+        <aside class="col right-col">
+          <section class="panel">
+            <div class="panel-title">
+              <strong>Configuracion activa</strong>
+            </div>
+
+            <div class="summary-list">
+              <div class="summary-line">
+                <div class="summary-icon">P</div>
+                <div>
+                  <span>Proveedor</span>
+                  <strong id="summaryProvider">OpenRouter</strong>
+                  <small id="summaryCategory">model_gateway</small>
+                </div>
+              </div>
+
+              <div class="summary-line">
+                <div class="summary-icon">M</div>
+                <div>
+                  <span>Modelo</span>
+                  <strong id="summaryModel">openrouter/free</strong>
+                  <small id="summaryModelMeta">Gratis · Router automático</small>
+                </div>
+              </div>
+
+              <div class="summary-line">
+                <div class="summary-icon">A</div>
+                <div>
+                  <span>Autenticación</span>
+                  <strong id="summaryAuth">API Key</strong>
+                  <small id="summarySecret">keyring:openrouter_secret</small>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-title">
+              <strong>Métricas</strong>
+            </div>
+
+            <div class="metrics-grid">
+              <div class="metric">
+                <span>Billing</span>
+                <strong id="metricBilling">credits</strong>
+              </div>
+              <div class="metric">
+                <span>Runtime</span>
+                <strong id="metricRuntime">gateway_api</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel actions">
+            <div class="action-row">
+              <button class="action secondary" id="testBtn">⟲ Test</button>
+              <button class="action primary" id="applyBtn">✦ Aplicar</button>
+            </div>
+            <p class="notice" id="verificationText">Perfil actual cargado en caliente mediante profiles.use.</p>
+          </section>
+        </aside>
+      </section>
+    </main>
+
+    <script>
+      const data = {
+        local: {
+          provider: "ollama",
+          label: "Ollama Local",
+          icon: "OL",
+          category: "local_runtime",
+          baseUrl: "http://localhost:11434",
+          runtime: "local_runtime",
+          billing: "local",
+          cost: "N/A",
+          limit: 32768,
+          used: 2100,
+          auth: [
+            {
+              id: "none",
+              label: "Sin autenticación",
+              billing: "local",
+              runtime: "local_runtime",
+              secret: "none",
+              hint: "Ollama no requiere credenciales por defecto",
+            },
+          ],
+          models: [
+            { id: "qwen2.5:7b", meta: "Local · General" },
+            { id: "qwen2.5-coder:7b", meta: "Local · Code" },
+            { id: "mistral:latest", meta: "Local · Rápido" },
+            { id: "llama3.2:3b", meta: "Local · Ligero" },
+            { id: "deepseek-r1:7b", meta: "Local · Razonamiento" },
+            { id: "codellama:7b", meta: "Local · Programación" },
+          ],
+        },
+        cloud: {
+          openrouter: {
+            label: "OpenRouter",
+            icon: "OR",
+            category: "model_gateway",
+            baseUrl: "https://openrouter.ai/api/v1",
+            defaultAuth: "api_key",
+            defaultModel: "openrouter/free",
+            tokenLimit: 128000,
+            used: 14820,
+            cost: "$0.0008",
+            auth: [
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "credits",
+                runtime: "gateway_api",
+                secret: "keyring:openrouter_secret",
+                hint: "Clave activa: env:OPENROUTER_API_KEY",
+              },
+            ],
+            models: [
+              { id: "openrouter/free", meta: "Gratis · Router automático" },
+              { id: "deepseek/deepseek-r1:free", meta: "Gratis · Razonamiento" },
+              { id: "qwen/qwen3-coder:free", meta: "Gratis · Code" },
+              { id: "google/gemini-2.5-flash", meta: "Rápido · Equilibrado" },
+              { id: "meta-llama/llama-3.3-70b-instruct", meta: "Equilibrado · Versátil" },
+              { id: "openai/gpt-4o-mini", meta: "Pago · Económico" },
+              { id: "anthropic/claude-3.5-haiku", meta: "Rápido · Bajo costo" },
+              { id: "mistralai/mistral-small", meta: "Rápido · Multilingüe" },
+              { id: "x-ai/grok-code-fast-1", meta: "Code · Experimental" },
+            ],
+          },
+          openai: {
+            label: "OpenAI",
+            icon: "OA",
+            category: "native_provider",
+            baseUrl: "https://api.openai.com/v1",
+            defaultAuth: "api_key",
+            defaultModel: "gpt-4o-mini",
+            tokenLimit: 128000,
+            used: 18440,
+            cost: "$0.0124",
+            auth: [
+              {
+                id: "browser_oauth",
+                label: "Iniciar sesión",
+                billing: "subscription",
+                runtime: "official_cli_session",
+                secret: "system_keyring:openai_session",
+                hint: "Sesión ChatGPT / OAuth PKCE",
+              },
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:OPENAI_API_KEY",
+                hint: "Clave activa: env:OPENAI_API_KEY",
+              },
+            ],
+            models: [
+              { id: "gpt-4o-mini", meta: "Rápido · Económico" },
+              { id: "gpt-4o", meta: "Multimodal · General" },
+              { id: "gpt-4.1-mini", meta: "Code · Bajo costo" },
+              { id: "gpt-4.1", meta: "Avanzado · Preciso" },
+              { id: "o4-mini", meta: "Razonamiento · Eficiente" },
+            ],
+          },
+          gemini: {
+            label: "Gemini",
+            icon: "GM",
+            category: "native_provider",
+            baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+            defaultAuth: "api_key",
+            defaultModel: "gemini-2.5-flash",
+            tokenLimit: 1048576,
+            used: 22200,
+            cost: "$0.0041",
+            auth: [
+              {
+                id: "browser_oauth",
+                label: "Iniciar sesión",
+                billing: "subscription",
+                runtime: "official_cli_session",
+                secret: "system_keyring:gemini_session",
+                hint: "Login with Google / Gemini CLI",
+              },
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:GEMINI_API_KEY",
+                hint: "Clave activa: env:GEMINI_API_KEY",
+              },
+              {
+                id: "adc",
+                label: "Google Cloud",
+                billing: "cloud_project",
+                runtime: "direct_api",
+                secret: "gcloud:application_default_credentials",
+                hint: "ADC activo mediante gcloud",
+              },
+              {
+                id: "service_account",
+                label: "Cuenta servicio",
+                billing: "cloud_project",
+                runtime: "direct_api",
+                secret: "/home/style/keys/gemini-service-account.json",
+                hint: "Ruta absoluta al JSON de credenciales",
+              },
+            ],
+            models: [
+              { id: "gemini-2.5-flash", meta: "Rápido · Multimodal" },
+              { id: "gemini-2.5-pro", meta: "Alta capacidad" },
+              { id: "gemini-1.5-pro", meta: "Contexto largo" },
+              { id: "gemini-1.5-flash", meta: "Económico" },
+            ],
+          },
+          claude: {
+            label: "Claude",
+            icon: "CL",
+            category: "native_provider",
+            baseUrl: "https://api.anthropic.com",
+            defaultAuth: "api_key",
+            defaultModel: "claude-3-5-sonnet-latest",
+            tokenLimit: 200000,
+            used: 35300,
+            cost: "$0.0315",
+            auth: [
+              {
+                id: "browser_oauth",
+                label: "Iniciar sesión",
+                billing: "subscription",
+                runtime: "official_cli_session",
+                secret: "system_keyring:claude_session",
+                hint: "Claude subscription / Claude Code",
+              },
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:ANTHROPIC_API_KEY",
+                hint: "Clave activa: env:ANTHROPIC_API_KEY",
+              },
+            ],
+            models: [
+              { id: "claude-3-5-sonnet-latest", meta: "Preciso · Avanzado" },
+              { id: "claude-sonnet-4", meta: "Alta capacidad" },
+              { id: "claude-3-5-haiku", meta: "Rápido · Económico" },
+            ],
+          },
+          deepseek: {
+            label: "DeepSeek",
+            icon: "DS",
+            category: "native_provider",
+            baseUrl: "https://api.deepseek.com",
+            defaultAuth: "api_key",
+            defaultModel: "deepseek-chat",
+            tokenLimit: 64000,
+            used: 9800,
+            cost: "$0.0020",
+            auth: [
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:DEEPSEEK_API_KEY",
+                hint: "Clave activa: env:DEEPSEEK_API_KEY",
+              },
+            ],
+            models: [
+              { id: "deepseek-chat", meta: "General · Compatible" },
+              { id: "deepseek-reasoner", meta: "Razonamiento" },
+            ],
+          },
+          mistral: {
+            label: "Mistral",
+            icon: "MI",
+            category: "native_provider",
+            baseUrl: "https://api.mistral.ai/v1",
+            defaultAuth: "api_key",
+            defaultModel: "mistral-small-latest",
+            tokenLimit: 128000,
+            used: 6200,
+            cost: "$0.0014",
+            auth: [
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:MISTRAL_API_KEY",
+                hint: "Clave activa: env:MISTRAL_API_KEY",
+              },
+            ],
+            models: [
+              { id: "mistral-small-latest", meta: "Rápido · Económico" },
+              { id: "mistral-large-latest", meta: "Alta capacidad" },
+            ],
+          },
+          groq: {
+            label: "Groq",
+            icon: "GQ",
+            category: "inference_provider",
+            baseUrl: "https://api.groq.com/openai/v1",
+            defaultAuth: "api_key",
+            defaultModel: "llama-3.1-8b-instant",
+            tokenLimit: 131072,
+            used: 5400,
+            cost: "$0.0005",
+            auth: [
+              {
+                id: "api_key",
+                label: "API Key",
+                billing: "pay_as_you_go",
+                runtime: "direct_api",
+                secret: "env:GROQ_API_KEY",
+                hint: "Clave activa: env:GROQ_API_KEY",
+              },
+            ],
+            models: [
+              { id: "llama-3.1-8b-instant", meta: "Ultra rápido" },
+              { id: "llama-3.3-70b-versatile", meta: "Versátil" },
+            ],
+          },
+        },
+      };
+
+      const state = {
+        mode: "cloud",
+        provider: "openrouter",
+        auth: "api_key",
+        model: "openrouter/free",
+        providerQuery: "",
+        modelQuery: "",
+      };
+
+      const el = {
+        providerSearch: document.getElementById("providerSearch"),
+        providerCounter: document.getElementById("providerCounter"),
+        providerList: document.getElementById("providerList"),
+        authButtons: document.getElementById("authButtons"),
+        credentialArea: document.getElementById("credentialArea"),
+        modelList: document.getElementById("modelList"),
+        modelCounter: document.getElementById("modelCounter"),
+        modelSearch: document.getElementById("modelSearch"),
+        modelsHint: document.getElementById("modelsHint"),
+        metricBilling: document.getElementById("metricBilling"),
+        metricRuntime: document.getElementById("metricRuntime"),
+        metricLimit: document.getElementById("metricLimit"),
+        metricCost: document.getElementById("metricCost"),
+        summaryProvider: document.getElementById("summaryProvider"),
+        summaryCategory: document.getElementById("summaryCategory"),
+        summaryModel: document.getElementById("summaryModel"),
+        summaryModelMeta: document.getElementById("summaryModelMeta"),
+        summaryAuth: document.getElementById("summaryAuth"),
+        summarySecret: document.getElementById("summarySecret"),
+        usageText: document.getElementById("usageText"),
+        usagePercent: document.getElementById("usagePercent"),
+        usageProgress: document.getElementById("usageProgress"),
+        configPreview: document.getElementById("configPreview"),
+        logger: document.getElementById("logger"),
+        testBtn: document.getElementById("testBtn"),
+        applyBtn: document.getElementById("applyBtn"),
+        verificationText: document.getElementById("verificationText"),
+      };
+
+      function currentProvider() {
+        if (state.mode === "local") return data.local;
+        return data.cloud[state.provider];
+      }
+
+      function currentAuth(provider) {
+        return provider.auth.find((item) => item.id === state.auth) || provider.auth[0];
+      }
+
+      function currentModel(provider) {
+        return provider.models.find((item) => item.id === state.model) || provider.models[0];
+      }
+
+      function formatNumber(value) {
+        return new Intl.NumberFormat("en-US").format(value);
+      }
+
+      function billingLabel(value) {
+        return (
+          {
+            local: "Local",
+            credits: "Créditos / Pay per use",
+            pay_as_you_go: "Pago por uso",
+            subscription: "Suscripción",
+            cloud_project: "Proyecto Cloud",
+          }[value] || value
+        );
+      }
+
+      function authLabel(value) {
+        return (
+          {
+            none: "Sin autenticación",
+            api_key: "API Key",
+            browser_oauth: "Browser OAuth",
+            adc: "Google ADC",
+            service_account: "Cuenta servicio",
+          }[value] || value
+        );
+      }
+
+      function renderModes() {
+        document.querySelectorAll("[data-mode]").forEach((button) => {
+          button.classList.toggle("active", button.dataset.mode === state.mode);
+        });
+      }
+
+      function renderProviders() {
+        el.providerList.innerHTML = "";
+
+        if (el.providerSearch.value !== state.providerQuery) {
+          el.providerSearch.value = state.providerQuery;
+        }
+
+        const providers = state.mode === "local" ? { ollama: data.local } : data.cloud;
+        const entries = Object.entries(providers);
+        const query = state.providerQuery.trim().toLowerCase();
+
+        const filtered = entries.filter(([id, provider]) => {
+          return id.toLowerCase().includes(query) || provider.label.toLowerCase().includes(query) || provider.category.toLowerCase().includes(query);
+        });
+
+        el.providerCounter.textContent = `${filtered.length}/${entries.length}`;
+
+        filtered.forEach(([id, provider]) => {
+          const active = state.mode === "local" ? id === "ollama" : state.provider === id;
+          const authSummary = provider.auth.map((item) => item.id).join(" · ");
+
+          const button = document.createElement("button");
+          button.className = "provider-item";
+          button.classList.toggle("active", active);
+          button.innerHTML = `
+            <div class="provider-icon">${provider.icon || provider.label.slice(0, 2).toUpperCase()}</div>
+            <div class="provider-name">
+              <strong>${provider.label}</strong>
+              <span>${provider.category} · ${authSummary}</span>
+            </div>
+            <div class="check">✓</div>
+          `;
+
+          button.addEventListener("click", () => {
+            if (state.mode === "local") {
+              state.provider = "ollama";
+              state.auth = "none";
+              state.model = data.local.models[0].id;
+            } else {
+              state.provider = id;
+              state.auth = provider.defaultAuth;
+              state.model = provider.defaultModel;
+            }
+
+            state.modelQuery = "";
+            render();
+          });
+
+          el.providerList.appendChild(button);
+        });
+      }
+
+      function renderAuth(provider) {
+        el.authButtons.innerHTML = "";
+
+        provider.auth.forEach((auth) => {
+          const button = document.createElement("button");
+          button.className = "btn";
+          button.textContent = auth.label;
+          button.classList.toggle("active", state.auth === auth.id);
+          button.addEventListener("click", () => {
+            state.auth = auth.id;
+            render();
+          });
+          el.authButtons.appendChild(button);
+        });
+
+        const auth = currentAuth(provider);
+
+        if (state.mode === "local") {
+          el.credentialArea.innerHTML = `
+            <input class="field" value="${provider.baseUrl}" aria-label="URL Ollama" />
+            <div class="line"><b>AUTH</b><span>none · servidor Ollama local o remoto dentro de tu red</span></div>
+          `;
+          return;
+        }
+
+        if (auth.id === "api_key") {
+          el.credentialArea.innerHTML = `
+            <div class="line"><b>SecretRef</b><span>${auth.secret}</span></div>
+            <div class="line"><b>Estado</b><span>${auth.hint}</span></div>
+            <button class="danger">✖ Borrar clave activa</button>
+          `;
+          return;
+        }
+
+        if (auth.id === "browser_oauth") {
+          el.credentialArea.innerHTML = `
+            <div class="line"><b>SessionRef</b><span>${auth.secret}</span></div>
+            <button class="btn active">Abrir navegador</button>
+            <div class="line"><b>OAuth</b><span>${auth.hint}</span></div>
+          `;
+          return;
+        }
+
+        if (auth.id === "adc") {
+          el.credentialArea.innerHTML = `
+            <div class="line"><b>ADC</b><span>${auth.secret}</span></div>
+            <button class="btn active">Verificar ADC</button>
+          `;
+          return;
+        }
+
+        if (auth.id === "service_account") {
+          el.credentialArea.innerHTML = `
+            <input class="field" value="${auth.secret}" aria-label="Ruta service account" />
+            <button class="btn active">Validar JSON</button>
+          `;
+        }
+      }
+
+      function renderModels(provider) {
+        el.modelList.innerHTML = "";
+        el.modelsHint.textContent = state.mode === "local" ? "ollama_api" : "models.list / fallback";
+
+        if (el.modelSearch.value !== state.modelQuery) {
+          el.modelSearch.value = state.modelQuery;
+        }
+
+        const query = state.modelQuery.trim().toLowerCase();
+        const filteredModels = provider.models.filter((model) => {
+          return model.id.toLowerCase().includes(query) || model.meta.toLowerCase().includes(query);
+        });
+
+        el.modelCounter.textContent = `${filteredModels.length}/${provider.models.length}`;
+
+        filteredModels.forEach((model) => {
+          const button = document.createElement("button");
+          button.className = "model";
+          button.classList.toggle("active", state.model === model.id);
+          button.innerHTML = `
+            <div>
+              <strong>${model.id}</strong>
+              <span>${model.meta}</span>
+            </div>
+            <div class="check">✓</div>
+          `;
+          button.addEventListener("click", () => {
+            state.model = model.id;
+            render();
+          });
+          el.modelList.appendChild(button);
+        });
+      }
+
+      function renderMetrics(provider, auth, model) {
+        const limit = provider.tokenLimit || provider.limit || 32768;
+        const used = provider.used || 0;
+        const percent = Math.min((used / limit) * 100, 100);
+
+        el.metricBilling.textContent = billingLabel(auth.billing);
+        el.metricRuntime.textContent = auth.runtime;
+        el.metricLimit.textContent = formatNumber(limit);
+        el.metricCost.textContent = auth.billing === "subscription" || auth.billing === "local" ? "N/A" : provider.cost;
+
+        el.usageText.textContent = `${formatNumber(used)} / ${formatNumber(limit)}`;
+        el.usagePercent.textContent = `${percent.toFixed(1)}%`;
+        el.usageProgress.style.width = `${percent}%`;
+
+        el.summaryProvider.textContent = provider.label;
+        el.summaryCategory.textContent = provider.category;
+        el.summaryModel.textContent = model.id;
+        el.summaryModelMeta.textContent = model.meta;
+        el.summaryAuth.textContent = authLabel(auth.id);
+        el.summarySecret.textContent = auth.secret;
+      }
+
+      function renderPreview(provider, auth) {
+        const providerId = state.mode === "local" ? "ollama" : state.provider;
+        const profile = `${providerId}_${auth.id}_profile`;
+        const refKey = auth.id === "browser_oauth" ? "session_ref" : "secret_ref";
+
+        el.configPreview.innerHTML = `<b>rbot.yaml</b>
+model:
+  provider: ${providerId}
+  model: ${state.model}
+  base_url: ${provider.baseUrl}
+
+<b>providers.yaml</b>
+active_profile: ${profile}
+active_provider: ${providerId}
+active_model: ${state.model}
+active_auth_mode: ${auth.id}
+
+profiles:
+  ${profile}:
+    provider: ${providerId}
+    model: ${state.model}
+    auth_mode: ${auth.id}
+    ${refKey}: ${auth.secret}
+    enabled: true`;
+      }
+
+      function render() {
+        const provider = currentProvider();
+
+        if (state.mode === "local") {
+          state.auth = "none";
+          state.provider = "ollama";
+          if (!provider.models.some((item) => item.id === state.model)) {
+            state.model = provider.models[0].id;
+          }
+        } else {
+          if (!provider.auth.some((item) => item.id === state.auth)) {
+            state.auth = provider.defaultAuth;
+          }
+          if (!provider.models.some((item) => item.id === state.model)) {
+            state.model = provider.defaultModel;
+          }
+        }
+
+        const auth = currentAuth(provider);
+        const model = currentModel(provider);
+
+        renderModes();
+        renderProviders();
+        renderAuth(provider);
+        renderModels(provider);
+        renderMetrics(provider, auth, model);
+        renderPreview(provider, auth);
+      }
+
+      document.querySelectorAll("[data-mode]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.mode = button.dataset.mode;
+          state.providerQuery = "";
+          state.modelQuery = "";
+
+          if (state.mode === "local") {
+            state.provider = "ollama";
+            state.auth = "none";
+            state.model = data.local.models[0].id;
+          } else {
+            state.provider = "openrouter";
+            state.auth = data.cloud.openrouter.defaultAuth;
+            state.model = data.cloud.openrouter.defaultModel;
+          }
+
+          render();
+        });
+      });
+
+      el.providerSearch.addEventListener("input", () => {
+        state.providerQuery = el.providerSearch.value;
+        renderProviders();
+      });
+
+      el.modelSearch.addEventListener("input", () => {
+        state.modelQuery = el.modelSearch.value;
+        renderModels(currentProvider());
+      });
+
+      el.testBtn.addEventListener("click", () => {
+        const provider = currentProvider();
+        el.logger.innerHTML = `<span class="ok">⟲</span><span>Probando conexión con ${provider.label}...</span>`;
+        setTimeout(() => {
+          el.logger.innerHTML = `<span class="ok">✓</span><span>Conexión correcta · models.list respondió usando ${provider.label}.</span>`;
+          el.verificationText.textContent = "providers.status respondió correctamente.";
+        }, 700);
+      });
+
+      el.applyBtn.addEventListener("click", () => {
+        const provider = currentProvider();
+        const auth = currentAuth(provider);
+        el.logger.innerHTML = `<span class="ok">✦</span><span>Guardando keyring/config y activando perfil...</span>`;
+        setTimeout(() => {
+          el.logger.innerHTML = `<span class="ok">✓</span><span>Perfil activo aplicado: ${provider.label} · ${state.model} · ${auth.id}.</span>`;
+          el.verificationText.textContent = "profiles.use ejecutado en caliente sin reiniciar el servicio.";
+        }, 800);
+      });
+
+      render();
+    </script>
+  </body>
+</html>

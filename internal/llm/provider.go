@@ -74,12 +74,13 @@ type ChatOptions struct {
 
 // ProviderConfig describe la configuración necesaria para instanciar un proveedor.
 type ProviderConfig struct {
-	Name     string `json:"name"`
-	Type     string `json:"type"` // "ollama", "openai", "compatible"
-	BaseURL  string `json:"base_url"`
-	APIKey   string `json:"api_key,omitempty"`
-	Model    string `json:"model"`
-	IsActive bool   `json:"is_active"`
+	Name          string `json:"name"`
+	Type          string `json:"type"` // "ollama", "openai", "compatible"
+	BaseURL       string `json:"base_url"`
+	APIKey        string `json:"api_key,omitempty"`
+	Model         string `json:"model"`
+	ActiveProfile string `json:"active_profile,omitempty"`
+	IsActive      bool   `json:"is_active"`
 }
 
 // Provider define la interfaz que todo proveedor de LLM debe implementar.
@@ -101,4 +102,16 @@ type Provider interface {
 
 	// SetModel cambia el modelo activo en caliente.
 	SetModel(modelID string)
+}
+
+// ProviderCapability define de forma explícita las capacidades y métodos de autenticación de un proveedor.
+type ProviderCapability struct {
+	AuthMode      string   `json:"auth_mode" yaml:"auth_mode"`
+	BillingMode   string   `json:"billing_mode" yaml:"billing_mode"`
+	RuntimeMode   string   `json:"runtime_mode" yaml:"runtime_mode"`
+	Usage         string   `json:"usage,omitempty" yaml:"usage,omitempty"`
+	EnvKey        string   `json:"env_key,omitempty" yaml:"env_key,omitempty"`
+	BaseURL       string   `json:"base_url,omitempty" yaml:"base_url,omitempty"`
+	Header        string   `json:"header,omitempty" yaml:"header,omitempty"`
+	Compatibility []string `json:"compatibility,omitempty" yaml:"compatibility,omitempty"`
 }

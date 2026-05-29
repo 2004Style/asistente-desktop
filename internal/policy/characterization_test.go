@@ -36,7 +36,11 @@ func TestDirectAndExecutorPathAgreement(t *testing.T) {
 	defer sqliteDB.Close()
 
 	p := &testProvider{name: "test", model: "m"}
-	o := agent.NewOrchestrator(sqliteDB, p, nil, []string{"~/.ssh"}, []string{"."}, "TestBot", nil)
+	reg := llm.NewRegistry()
+	_ = reg.Register(p)
+	llmManager := llm.NewManager(sqliteDB, reg)
+	_ = llmManager.SetActive("test")
+	o := agent.NewOrchestrator(sqliteDB, llmManager, nil, nil, []string{"~/.ssh"}, []string{"."}, "TestBot", nil)
 
 	// Characterization: compare executor policy vs security helper for the same tool/args
 	toolHandler, ok := o.Registry.Get("system.run_command_safe")

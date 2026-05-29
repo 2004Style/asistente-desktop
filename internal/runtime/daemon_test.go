@@ -191,3 +191,36 @@ func TestDaemonWorkspaceAndShortcuts(t *testing.T) {
 		t.Errorf("Expected 1 shortcut, got %d", len(shortcutsList))
 	}
 }
+
+
+func TestDaemonProfilesUseCommand(t *testing.T) {
+	reg := llm.NewRegistry()
+	_ = reg.Register(&runtimeMockProvider{name: "ollama", model: "qwen2.5:7b"})
+	mgr := llm.NewManager(nil, reg)
+	if err := mgr.SetActive("ollama"); err != nil {
+		t.Fatalf("SetActive failed: %v", err)
+	}
+	d := &runtime.Daemon{
+		LLMManager: mgr,
+		ProvidersConf: &config.ProvidersConfig{
+			Profiles: map[string]config.ProfileEntry{
+				"local_fast": {Provider: "ollama", Model: "qwen2.5:7b", AuthMode: "none", Enabled: true},
+			},
+		},
+	}
+
+	res, err := d.HandleCommand("profiles.use", map[string]interface{}{"name": "local_fast"})
+	if err != nil {
+		t.Fatalf("profiles.use failed: %v", err)
+	}
+	data, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("unexpected response type: %#v", res)
+	}
+	if data["profile"] != "local_fast" {
+		t.Fatalf("expected profile local_fast, got %#v", data["profile"])
+	}
+	if mgr.ActiveProfile() != "local_fast" {
+		t.Fatalf("expected active profile local_fast, got %q", mgr.ActiveProfile())
+	}
+}

@@ -443,6 +443,52 @@ func main() {
 			log.Fatalf("Subcomando de providers desconocido: '%s'", subCmd)
 		}
 
+	case "profiles":
+		if len(os.Args) < 3 {
+			log.Fatal("Uso: rbotctl profiles [list|use <nombre>]")
+		}
+		subCmd := strings.ToLower(os.Args[2])
+		switch subCmd {
+		case "list":
+			resp, err := ipc.SendCommandRPC(socketPath, "profiles.list", nil, "profiles-list-req")
+			if err != nil {
+				log.Fatalf("Error de conexión: %v", err)
+			}
+			if resp.Error != nil {
+				log.Fatalf("Error del daemon: %s", resp.Error.Message)
+			}
+			profiles, ok := resp.Result.([]interface{})
+			if !ok {
+				fmt.Println(resp.Result)
+			} else {
+				fmt.Println("\n--- PERFILES DISPONIBLES ---")
+				for _, p := range profiles {
+					if pm, ok := p.(map[string]interface{}); ok {
+						marker := " "
+						if enabled, _ := pm["enabled"].(bool); enabled {
+							marker = "*"
+						}
+						fmt.Printf("  %s %v -> %v/%v (auth: %v)\n", marker, pm["name"], pm["provider"], pm["model"], pm["auth_mode"])
+					}
+				}
+			}
+		case "use":
+			if len(os.Args) < 4 {
+				log.Fatal("Uso: rbotctl profiles use <nombre>")
+			}
+			name := os.Args[3]
+			resp, err := ipc.SendCommandRPC(socketPath, "profiles.use", map[string]interface{}{"name": name}, "profiles-use-req")
+			if err != nil {
+				log.Fatalf("Error de conexión: %v", err)
+			}
+			if resp.Error != nil {
+				log.Fatalf("Error del daemon: %s", resp.Error.Message)
+			}
+			fmt.Println(resp.Result)
+		default:
+			log.Fatalf("Subcomando de profiles desconocido: '%s'", subCmd)
+		}
+
 	case "models":
 		if len(os.Args) < 3 {
 			log.Fatal("Uso: rbotctl models [list [--provider <nombre>]|current|switch [<provider>] <modelo>]")
@@ -497,7 +543,7 @@ func main() {
 			if !ok {
 				fmt.Println(resp.Result)
 			} else {
-				fmt.Printf("Proveedor: %v\nModelo: %v\nEstado: %v\n", data["provider"], data["model"], data["status"])
+				fmt.Printf("Perfil: %v\nProveedor: %v\nModelo: %v\nEstado: %v\n", data["profile"], data["provider"], data["model"], data["status"])
 			}
 
 		case "switch":
@@ -537,6 +583,8 @@ func printUsage() {
 	fmt.Println("  say \"<mensaje>\"            Envía una orden al daemon para que la procese e informe.")
 	fmt.Println("\nConfiguración LLM:")
 	fmt.Println("  settings <providers|models|status> Alias único para la configuración.")
+	fmt.Println("  profiles list              Lista perfiles de ejecución disponibles.")
+	fmt.Println("  profiles use <nombre>      Activa un perfil de ejecución.")
 	fmt.Println("  providers list             Lista proveedores LLM registrados.")
 	fmt.Println("  providers status           Muestra el proveedor LLM activo.")
 	fmt.Println("  providers use <nombre>     Cambia el proveedor LLM activo.")

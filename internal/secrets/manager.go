@@ -13,12 +13,19 @@ type Manager struct {
 	resolvers map[string]Resolver
 }
 
+type PlainResolver struct{}
+
+func (PlainResolver) Resolve(ref string) (string, error) {
+	return ref, nil
+}
+
 func NewManager() *Manager {
 	m := &Manager{resolvers: map[string]Resolver{}}
 	m.Register("env", EnvResolver{})
-	// Register keyring resolver if available
 	m.Register("keyring", KeyringResolver{})
 	m.Register("kr", KeyringResolver{})
+	m.Register("plain", PlainResolver{})
+	m.Register("literal", PlainResolver{})
 	return m
 }
 

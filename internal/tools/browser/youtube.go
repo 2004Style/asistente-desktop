@@ -114,15 +114,18 @@ func (t *YouTubeSearchTool) Execute(ctx context.Context, args map[string]interfa
 }
 
 func getFirstYouTubeVideo(query string) string {
-	searchURL := fmt.Sprintf("https://www.youtube.com/results?search_query=%s", strings.ReplaceAll(query, " ", "+"))
+	searchURL := fmt.Sprintf("https://www.youtube.com/results?search_query=%s", url.QueryEscape(query))
 
 	req, err := http.NewRequest("GET", searchURL, nil)
 	if err != nil {
 		return searchURL
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "es-ES,es;q=0.9,en;q=0.8")
+	req.Header.Set("Cookie", "CONSENT=YES+yt.350338600.es+FX+999")
 
-	client := &http.Client{Timeout: 4 * time.Second}
+	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return searchURL
@@ -135,6 +138,15 @@ func getFirstYouTubeVideo(query string) string {
 	}
 
 	bodyStr := string(bodyBytes)
+
+	// Intentar buscar videoId en JSON de ytInitialData primero
+	reVideoID := regexp.MustCompile(`"videoId"\s*:\s*"([a-zA-Z0-9_-]{11})"`)
+	matchID := reVideoID.FindStringSubmatch(bodyStr)
+	if len(matchID) > 1 {
+		return "https://www.youtube.com/watch?v=" + matchID[1]
+	}
+
+	// Fallback a buscar /watch?v= clásico
 	re := regexp.MustCompile(`/watch\?v=[a-zA-Z0-9_-]{11}`)
 	match := re.FindString(bodyStr)
 	if match != "" {
