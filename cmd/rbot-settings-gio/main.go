@@ -640,30 +640,6 @@ func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, na
 
 		return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				// Icon box initials
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					size := gtx.Dp(32)
-					iconShape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
-					if isActive {
-						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, iconShape)
-					} else {
-						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 20}, iconShape)
-						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 46}, clip.Stroke{
-							Path:  safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Path(gtx.Ops),
-							Width: 1,
-						}.Op())
-					}
-					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						lbl := material.Label(th, unit.Sp(11), getProviderIconText(name))
-						if isActive {
-							lbl.Color = color.NRGBA{R: 0x00, G: 0x10, B: 0x18, A: 0xFF}
-						} else {
-							lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
-						}
-						return lbl.Layout(gtx)
-					})
-				}),
-				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 				// Description
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -699,6 +675,7 @@ func drawCheck(gtx layout.Context, th *material.Theme, active bool) layout.Dimen
 	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
 	if active {
 		paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}, shape)
+		gtx.Constraints.Max = image.Pt(size, size)
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(th, unit.Sp(12), "✓")
 			lbl.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
@@ -710,24 +687,6 @@ func drawCheck(gtx layout.Context, th *material.Theme, active bool) layout.Dimen
 	}
 }
 
-func getProviderIconText(provider string) string {
-	switch provider {
-	case "ollama":
-		return "OL"
-	case "openai":
-		return "OA"
-	case "anthropic":
-		return "CL"
-	case "google_gemini":
-		return "GM"
-	case "openrouter":
-		return "OR"
-	case "deepseek":
-		return "DS"
-	default:
-		return strings.ToUpper(provider[:2])
-	}
-}
 
 func drawCenterColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	log.Println("DEBUG: drawCenterColumn start")
@@ -1085,21 +1044,6 @@ func drawSummaryLine(gtx layout.Context, th *material.Theme, icon, title, val, s
 
 	return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				size := gtx.Dp(32)
-				iconShape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
-				paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 20}, iconShape)
-				paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 36}, clip.Stroke{
-					Path:  safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Path(gtx.Ops),
-					Width: 1,
-				}.Op())
-				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					lbl := material.Label(th, unit.Sp(12), icon)
-					lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
-					return lbl.Layout(gtx)
-				})
-			}),
-			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
