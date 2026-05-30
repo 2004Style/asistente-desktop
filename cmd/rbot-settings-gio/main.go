@@ -464,28 +464,43 @@ func loop(w *app.Window) error {
 	}
 }
 
+// drawTopbar dibuja la barra superior del HUD de configuración de RBot.
+// Esta sección representa la cabecera visual y la identidad de la aplicación.
+// Contiene:
+// - La sección izquierda con el logo de marca "AI" y los títulos "Ajustes Rbot".
+// - La sección derecha con el indicador de estado de conexión al Daemon ("CONECTADO A DAEMON")
+//   y controles simulados de ventana (minimizar, maximizar y cerrar).
 func drawTopbar(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	log.Println("DEBUG: drawTopbar start")
 	defer log.Println("DEBUG: drawTopbar end")
 	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+	
+	// Dibuja el fondo sólido de color gris muy oscuro (R:5, G:5, B:5) para toda la barra superior.
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 5, G: 5, B: 5, A: 255}, clip.Rect(cardRect).Op())
 
+	// Aplica un margen interno uniforme de 14 Dp para todo el contenido de la barra.
 	return layout.UniformInset(unit.Dp(14)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		// Alinea horizontalmente los elementos, distribuyéndolos de extremo a extremo (SpaceBetween).
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle, Spacing: layout.SpaceBetween}.Layout(gtx,
-			// Brand Logo & Title
+			// Sección izquierda: Logo "AI" y Títulos principal y secundario.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					// Dibuja el logotipo decorativo de la marca (Brand Logo).
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawBrandLogo(gtx, th)
 					}),
+					// Espaciador horizontal de 14 Dp entre el logo y los textos.
 					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
+					// Contenedor vertical para apilar los títulos de la cabecera.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							// Título principal: "Ajustes Rbot" en color blanco brillante.
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								lbl := material.Label(th, unit.Sp(16), "Ajustes Rbot")
 								lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 255}
 								return lbl.Layout(gtx)
 							}),
+							// Subtítulo secundario informativo.
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								lbl := material.Label(th, unit.Sp(9), "RBot Settings · Provider Control HUD")
 								lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
@@ -495,23 +510,29 @@ func drawTopbar(gtx layout.Context, th *material.Theme) layout.Dimensions {
 					}),
 				)
 			}),
-			// Status indicator & Window controls
+			// Sección derecha: Indicador de estado de conexión y botones simulados de ventana.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					// Dibuja el punto verde y el texto "CONECTADO A DAEMON".
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return drawTopStatus(gtx, th)
 					}),
+					// Espaciador horizontal de 18 Dp antes de la botonera.
 					layout.Rigid(layout.Spacer{Width: unit.Dp(18)}.Layout),
+					// Contenedor para los tres botones simulados de control de ventana.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+							// Botón Minimizar "—"
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return drawWindowBtn(gtx, th, "—", false)
 							}),
 							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							// Botón Maximizar "□"
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return drawWindowBtn(gtx, th, "□", false)
 							}),
 							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							// Botón Cerrar "×" (en color rojo)
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return drawWindowBtn(gtx, th, "×", true)
 							}),
@@ -523,26 +544,37 @@ func drawTopbar(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	})
 }
 
+// drawBrandLogo dibuja la caja blanca redondeada del logotipo de la marca.
+// Ocupa un área cuadrada de 36x36 Dp y muestra el texto "AI" centrado.
 func drawBrandLogo(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	size := gtx.Dp(36)
+	// Define la forma redondeada del contenedor con radio 6px.
 	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 6).Op(gtx.Ops)
+	// Rellena la forma con blanco sólido.
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, shape)
+	// Centra el texto "AI" en el medio de la caja.
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		lbl := material.Label(th, unit.Sp(15), "AI")
+		// Texto en azul oscuro/casi negro para crear un fuerte contraste sobre el fondo blanco.
 		lbl.Color = color.NRGBA{R: 0x00, G: 0x10, B: 0x18, A: 0xFF}
 		return lbl.Layout(gtx)
 	})
 }
 
+// drawTopStatus dibuja el indicador de conexión al Daemon en la barra superior.
+// Consta de un cuadrado verde brillante (neón) y la etiqueta de texto descriptiva.
 func drawTopStatus(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		// Punto/Caja verde de estado.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			size := gtx.Dp(9)
 			shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 2).Op(gtx.Ops)
+			// Rellena el punto con verde brillante (R:0, G:255, B:157)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}, shape)
 			return layout.Dimensions{Size: image.Pt(size, size)}
 		}),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		// Texto indicador "CONECTADO A DAEMON".
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(th, unit.Sp(11), "CONECTADO A DAEMON")
 			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 204}
@@ -551,39 +583,51 @@ func drawTopStatus(gtx layout.Context, th *material.Theme) layout.Dimensions {
 	)
 }
 
+// drawWindowBtn dibuja un botón simulado de control de ventana de 24x24 Dp.
+// Se dibuja como una caja translúcida gris/blanca muy tenue con el símbolo centrado.
 func drawWindowBtn(gtx layout.Context, th *material.Theme, char string, isClose bool) layout.Dimensions {
 	size := gtx.Dp(24)
 	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
+	// Pinta el fondo de la caja del botón con una opacidad muy baja (A: 14).
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, shape)
 
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		lbl := material.Label(th, unit.Sp(12), char)
 		if isClose {
+			// Si representa el botón "Cerrar", el símbolo se dibuja de color coral/rojo.
 			lbl.Color = color.NRGBA{R: 255, G: 90, B: 120, A: 230}
 		} else {
+			// Para los demás botones, se dibuja de color cian/blanco opaco.
 			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
 		}
 		return lbl.Layout(gtx)
 	})
 }
 
+// drawPanel dibuja un panel contenedor oscuro con bordes redondeados y estilo glassmorphism.
+// Se compone de:
+// - Capa inferior (Expanded): Un fondo gris translúcido esmerilado con un borde delgado de 1px.
+// - Capa superior (Stacked): Título de la sección en mayúsculas pequeñas y el widget de contenido interno.
 func drawPanel(gtx layout.Context, th *material.Theme, title string, content layout.Widget) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,
+		// Fondo del panel y borde exterior fino (Efecto Glass/Translúcido).
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			cardRect := image.Rectangle{Max: gtx.Constraints.Min}
 			shape := safeRRect(cardRect, 6).Op(gtx.Ops)
-			// Glassmorphic panel bg
+			// Pinta el relleno esmerilado (R:66, G:66, B:66, A:60)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 66, G: 66, B: 66, A: 60}, shape)
-			// Thin line borders
+			// Dibuja la línea de contorno blanca muy fina (1px con A:23)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 23}, clip.Stroke{
 				Path:  safeRRect(cardRect, 6).Path(gtx.Ops),
 				Width: 1,
 			}.Op())
 			return layout.Dimensions{Size: cardRect.Max}
 		}),
+		// Contenido del panel con un margen interno (Inset) de 14 Dp.
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(14)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					// Título del panel en mayúsculas.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Inset{Bottom: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(th, unit.Sp(10), strings.ToUpper(title))
@@ -591,6 +635,7 @@ func drawPanel(gtx layout.Context, th *material.Theme, title string, content lay
 							return lbl.Layout(gtx)
 						})
 					}),
+					// Widget principal con el contenido dinámico del panel.
 					layout.Rigid(content),
 				)
 			})
@@ -598,6 +643,9 @@ func drawPanel(gtx layout.Context, th *material.Theme, title string, content lay
 	)
 }
 
+// drawLeftColumn dibuja el panel lateral izquierdo que corresponde a la Columna 1.
+// Muestra el título "PROVEEDORES" y renderiza una lista vertical scrollable
+// de todos los proveedores de LLM disponibles (Ollama, OpenAI, Anthropic, etc.).
 func drawLeftColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	log.Println("DEBUG: drawLeftColumn start")
 	defer log.Println("DEBUG: drawLeftColumn end")
@@ -607,6 +655,7 @@ func drawLeftColumn(gtx layout.Context, th *material.Theme, state *uiState) layo
 		if gtx.Constraints.Max.Y < 0 {
 			gtx.Constraints.Max.Y = 0
 		}
+		// Renderiza cada elemento de la lista de proveedores con un margen inferior de 8 Dp.
 		return state.providerList.Layout(gtx, len(providers), func(gtx layout.Context, i int) layout.Dimensions {
 			name := providers[i]
 			return layout.Inset{Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -616,21 +665,32 @@ func drawLeftColumn(gtx layout.Context, th *material.Theme, state *uiState) layo
 	})
 }
 
+// drawProviderItem dibuja el botón/tarjeta de cada proveedor individual en la Columna 1.
+// Cada tarjeta mide 52 Dp de altura y contiene:
+// - El nombre del proveedor (ej. "Ollama", "Openai") con inicial mayúscula.
+// - El rol/categoría del proveedor (ej. "local_runtime", "native_provider").
+// - Un icono de verificación (check box) que se ilumina en verde cuando está seleccionado.
+// Si el proveedor está seleccionado (isActive), se resalta con fondo y contorno cian brillante.
 func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, name string) layout.Dimensions {
 	isActive := state.selectedProvider == name
 	btn := state.providerClicks[name]
 
+	// Envuelve todo el elemento en un componente interactivo/clickable.
 	return material.Clickable(gtx, btn, func(gtx layout.Context) layout.Dimensions {
 		cardRect := image.Rectangle{Max: gtx.Constraints.Max}
-		cardRect.Max.Y = gtx.Dp(52)
+		cardRect.Max.Y = gtx.Dp(52) // Forzar altura fija a la tarjeta
 		shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+		
+		// Color de fondo y borde basado en si el elemento está activo o inactivo.
 		if isActive {
+			// Fondo cian esmerilado y borde cian brillante.
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 25}, shape)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 180}, clip.Stroke{
 				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
 				Width: 1,
 			}.Op())
 		} else {
+			// Fondo gris oscuro sutil y borde translúcido apagado.
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 10}, shape)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
 				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
@@ -638,16 +698,20 @@ func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, na
 			}.Op())
 		}
 
+		// Espaciado interior de 10 Dp alrededor del contenido de la tarjeta.
 		return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// Distribuye el contenido en forma horizontal: los textos a la izquierda (Flexed) y el check a la derecha (Rigid).
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				// Description
+				// Textos de descripción del proveedor.
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						// Nombre del proveedor (ej: "Openai" o "Anthropic").
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(th, unit.Sp(12), strings.Title(name))
 							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
 							return lbl.Layout(gtx)
 						}),
+						// Categoría de integración del proveedor.
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							category := "native_provider"
 							if name == "openrouter" {
@@ -661,7 +725,7 @@ func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, na
 						}),
 					)
 				}),
-				// Check symbol
+				// Casilla de verificación de selección (Check Box) a la derecha.
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return drawCheck(gtx, th, isActive)
 				}),
@@ -670,34 +734,39 @@ func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, na
 	})
 }
 
+// drawCheck dibuja un pequeño recuadro de verificación (22x22 Dp) para indicar estados activos.
+// Si está activo (active = true), se pinta de color verde neón (R:0, G:255, B:157) para resaltar la selección.
+// Si está inactivo, se muestra vacío con un fondo translúcido muy apagado.
 func drawCheck(gtx layout.Context, th *material.Theme, active bool) layout.Dimensions {
 	size := gtx.Dp(22)
 	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
 	if active {
+		// Caja verde brillante para estado activo.
 		paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}, shape)
-		gtx.Constraints.Max = image.Pt(size, size)
-		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			lbl := material.Label(th, unit.Sp(12), "✓")
-			lbl.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
-			return lbl.Layout(gtx)
-		})
+		return layout.Dimensions{Size: image.Pt(size, size)}
 	} else {
+		// Caja vacía apagada para elementos no seleccionados.
 		paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 10}, shape)
 		return layout.Dimensions{Size: image.Pt(size, size)}
 	}
 }
 
-
+// drawCenterColumn dibuja el panel de la columna del medio (Columna 2).
+// Apila verticalmente dos paneles esenciales de configuración:
+// 1. Panel Superior: Ajustes de Autenticación y Credenciales (API Key o OAuth por navegador).
+// 2. Panel Inferior: Listado de Modelos Disponibles del proveedor seleccionado.
 func drawCenterColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	log.Println("DEBUG: drawCenterColumn start")
 	defer log.Println("DEBUG: drawCenterColumn end")
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Panel superior de Autenticación y métodos de credenciales.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return drawPanel(gtx, th, "Autenticación y credenciales", func(gtx layout.Context) layout.Dimensions {
 				return drawAuthSection(gtx, th, state)
 			})
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		// Panel inferior de Modelos disponibles.
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return drawPanel(gtx, th, "Modelos disponibles", func(gtx layout.Context) layout.Dimensions {
 				return drawModelsSection(gtx, th, state)
@@ -706,14 +775,25 @@ func drawCenterColumn(gtx layout.Context, th *material.Theme, state *uiState) la
 	)
 }
 
+// drawAuthSection renderiza los detalles del panel de credenciales de la Columna 2.
+// Consiste en:
+// - Un selector horizontal de modos de autenticación (ej: API Key, Iniciar sesión, Sin auth).
+// - Un contenedor inferior dinámico que muestra diferentes controles según el modo activo:
+//   - "api_key": Un campo de entrada de texto (Editor) para ingresar la API Key
+//     e indicador inferior del llavero de contraseñas.
+//   - "browser_oauth": Un botón para lanzar el navegador ("ABRIR NAVEGADOR")
+//     y el indicador del llavero de la sesión.
+//   - "none": Mensaje informativo para proveedores locales (como Ollama) que no requieren clave.
 func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	authModes := getAuthModesForProvider(state.selectedProvider, state.providersConf)
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Selector horizontal del modo de autenticación.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			children := make([]layout.FlexChild, 0, len(authModes)*2)
 			for i, mode := range authModes {
 				if i > 0 {
+					// Espacio horizontal entre los botones selectores.
 					children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout))
 				}
 				mode := mode
@@ -722,6 +802,7 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 
 				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					lbl := mode
+					// Traduce el identificador del modo a texto amigable para la interfaz.
 					if mode == "browser_oauth" {
 						lbl = "Iniciar sesión"
 					} else if mode == "api_key" {
@@ -734,11 +815,14 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 						lbl = "Cuenta servicio"
 					}
 
+					// Botón de opción selector.
 					return material.Clickable(gtx, btn, func(gtx layout.Context) layout.Dimensions {
 						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 						cardRect.Max.Y = gtx.Dp(28)
 						cardRect.Max.X = gtx.Dp(115)
 						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						
+						// Si está seleccionado, cambia a verde brillante, de lo contrario se dibuja translúcido apagado.
 						if isActive {
 							paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, shape)
 						} else {
@@ -749,11 +833,14 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 							}.Op())
 						}
 
+						// Centra el texto del botón selector.
 						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							lblVal := material.Label(th, unit.Sp(10), strings.ToUpper(lbl))
 							if isActive {
+								// Texto negro sobre fondo verde neón.
 								lblVal.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
 							} else {
+								// Texto apagado sobre botón apagado.
 								lblVal.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
 							}
 							return lblVal.Layout(gtx)
@@ -764,10 +851,13 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		// Renderizado dinámico del campo de entrada basado en el modo seleccionado.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			switch state.selectedAuthMode {
 			case "api_key":
+				// Entrada para la API Key
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					// Caja de entrada de texto (Editor)
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 						cardRect.Max.Y = gtx.Dp(38)
@@ -783,6 +873,7 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 						})
 					}),
 					layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+					// Etiqueta indicadora inferior de la API Key configurada actualmente.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
@@ -800,9 +891,11 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 					}),
 				)
 			case "browser_oauth":
+				// Flujo de autenticación OAuth 2.0 por Navegador Web.
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							// Etiqueta indicadora del llavero del sistema de la sesión.
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 								cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 								cardRect.Max.Y = gtx.Dp(32)
@@ -815,6 +908,7 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 								})
 							}),
 							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							// Botón "ABRIR NAVEGADOR" para lanzar el navegador web.
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return material.Button(th, &state.loginBtn, "ABRIR NAVEGADOR").Layout(gtx)
 							}),
@@ -822,6 +916,7 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 					}),
 				)
 			case "none":
+				// Flujo de Proveedor Local (sin autenticación).
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
@@ -836,16 +931,24 @@ func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) lay
 					}),
 				)
 			default:
+				// Fallback para métodos raros o externos.
 				return material.Caption(th, "Este método está gestionado externamente.").Layout(gtx)
 			}
 		}),
 	)
 }
 
+// drawModelsSection dibuja la sección de selección de modelos dentro de la Columna 2.
+// Se compone de:
+// - Fila superior: Un campo de entrada de texto (Editor) para escribir filtros de búsqueda (e.g. "gpt-4"),
+//   y al lado una caja que actúa como contador de modelos filtrados (ej: "2/6").
+// - Lista vertical: Un contenedor con límite de altura fija (260 Dp) con scroll vertical
+//   que renderiza las tarjetas de los modelos disponibles (filtrados por la consulta).
 func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	models := getModelsForProvider(state.selectedProvider, state.providersConf)
 	query := strings.ToLower(strings.TrimSpace(state.modelSearchEditor.Text()))
 
+	// Filtra los modelos según el texto de búsqueda ingresado en el input.
 	filteredModels := []string{}
 	for _, mID := range models {
 		if query == "" || strings.Contains(strings.ToLower(mID), query) {
@@ -854,11 +957,15 @@ func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) l
 	}
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Fila superior: Caja de búsqueda y contador.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				// Campo de búsqueda de modelos (Editor).
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					h := gtx.Dp(38)
+					gtx.Constraints.Min.Y = h
+					gtx.Constraints.Max.Y = h
 					cardRect := image.Rectangle{Max: gtx.Constraints.Max}
-					cardRect.Max.Y = gtx.Dp(38)
 					shape := safeRRect(cardRect, 4).Op(gtx.Ops)
 					paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 66}, shape)
 					paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
@@ -866,15 +973,21 @@ func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) l
 						Width: 1,
 					}.Op())
 
-					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return material.Editor(th, &state.modelSearchEditor, "Filtrar modelo...").Layout(gtx)
+					// Centra verticalmente el editor dentro de la tarjeta de 38 Dp.
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return material.Editor(th, &state.modelSearchEditor, "Filtrar modelo...").Layout(gtx)
+						})
 					})
 				}),
 				layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+				// Caja del contador de modelos (ej: "2/4") de tamaño 80x38 Dp.
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					w := gtx.Dp(80)
+					h := gtx.Dp(38)
+					gtx.Constraints.Min = image.Pt(w, h)
+					gtx.Constraints.Max = image.Pt(w, h)
 					cardRect := image.Rectangle{Max: gtx.Constraints.Max}
-					cardRect.Max.Y = gtx.Dp(38)
-					cardRect.Max.X = gtx.Dp(80)
 					shape := safeRRect(cardRect, 4).Op(gtx.Ops)
 					paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
 					paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
@@ -882,6 +995,7 @@ func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) l
 						Width: 1,
 					}.Op())
 
+					// Centra el texto del contador de modelos.
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(10), fmt.Sprintf("%d/%d", len(filteredModels), len(models)))
 						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
@@ -891,6 +1005,7 @@ func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) l
 			)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		// Listado vertical de tarjetas de modelos (con altura máxima de 260 Dp).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Min.Y = 0
 			gtx.Constraints.Max.Y = gtx.Dp(260)
@@ -904,6 +1019,12 @@ func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) l
 	)
 }
 
+// drawModelItem dibuja la tarjeta interactiva de un modelo en la lista de la Columna 2.
+// Cada tarjeta de modelo mide 46 Dp de altura y contiene:
+// - Nombre/ID del modelo (ej: "gpt-4o-mini" o "claude-3-5-sonnet-latest").
+// - Metadatos descriptivos pequeños (ej. "Rápido · Económico").
+// - La casilla de verificación (Check mark) que se ilumina cuando el modelo está seleccionado.
+// Si está activo (isActive), se pinta con color de fondo y borde verde/cian brillante.
 func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID string) layout.Dimensions {
 	isActive := state.selectedModel == mID
 	btn, ok := state.modelClicks[mID]
@@ -919,13 +1040,16 @@ func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID s
 		}
 		cardRect := image.Rectangle{Max: image.Pt(w, gtx.Dp(46))}
 		shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+		
 		if isActive {
+			// Resaltado de modelo seleccionado (Verde neón esmerilado).
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 255, B: 157, A: 20}, shape)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 120}, clip.Stroke{
 				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
 				Width: 1,
 			}.Op())
 		} else {
+			// Fondo inactivo gris/negro.
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 15, G: 15, B: 15, A: 170}, shape)
 			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
 				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
@@ -933,15 +1057,20 @@ func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID s
 			}.Op())
 		}
 
+		// Espaciado interno de 8 Dp.
 		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			// Divide en horizontal: los textos del modelo a la izquierda y el check de estado a la derecha.
 			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				// Textos del modelo.
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						// Nombre del modelo en tamaño 12 Sp.
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(th, unit.Sp(12), mID)
 							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
 							return lbl.Layout(gtx)
 						}),
+						// Metadatos explicativos en tamaño 9 Sp (ej: "Local · General" o "Multimodal").
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							meta := getModelMetaDescription(state.selectedProvider, mID)
 							lbl := material.Label(th, unit.Sp(9), meta)
@@ -950,6 +1079,7 @@ func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID s
 						}),
 					)
 				}),
+				// Casilla de verificación de selección (Check Box).
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return drawCheck(gtx, th, isActive)
 				}),
@@ -958,6 +1088,8 @@ func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID s
 	})
 }
 
+// getModelMetaDescription retorna una descripción corta y estilizada de las capacidades del modelo
+// para enriquecer visualmente las tarjetas en el listado de modelos.
 func getModelMetaDescription(provider, mID string) string {
 	switch provider {
 	case "ollama":
@@ -981,22 +1113,30 @@ func getModelMetaDescription(provider, mID string) string {
 	}
 }
 
+// drawRightColumn dibuja el panel lateral derecho correspondiente a la Columna 3.
+// Apila verticalmente tres paneles principales que cierran el flujo de ajustes:
+// 1. Panel Superior: "CONFIGURACION ACTIVA" (Resumen de las opciones seleccionadas).
+// 2. Panel Central: "MÉTRICAS" (Indicadores de facturación y entorno del proveedor).
+// 3. Panel Inferior: "ACCIONES" (Lanzador de conexión TEST, botón APLICAR cambios e indicadores de éxito).
 func drawRightColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	log.Println("DEBUG: drawRightColumn start")
 	defer log.Println("DEBUG: drawRightColumn end")
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Panel 1: Configuración Activa (Resumen).
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return drawPanel(gtx, th, "Configuracion activa", func(gtx layout.Context) layout.Dimensions {
 				return drawSummarySection(gtx, th, state)
 			})
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		// Panel 2: Métricas de Facturación y Entorno de Ejecución.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return drawPanel(gtx, th, "Métricas", func(gtx layout.Context) layout.Dimensions {
 				return drawMetricsSection(gtx, th, state)
 			})
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		// Panel 3: Acciones e Indicadores del Daemon de fondo.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return drawPanel(gtx, th, "Acciones", func(gtx layout.Context) layout.Dimensions {
 				return drawActionsSection(gtx, th, state)
@@ -1005,8 +1145,14 @@ func drawRightColumn(gtx layout.Context, th *material.Theme, state *uiState) lay
 	)
 }
 
+// drawSummarySection renderiza las tres líneas de resumen dentro del Panel de Configuración Activa.
+// Dibuja consecutivamente:
+// - Fila 1: Proveedor seleccionado (ej. "ollama", "openai").
+// - Fila 2: Modelo activo (ej. "gpt-4o-mini").
+// - Fila 3: Método de Autenticación actual (ej. "browser_oauth", "api_key").
 func drawSummarySection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Fila de resumen del Proveedor.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			category := "native_provider"
 			if state.selectedProvider == "openrouter" {
@@ -1017,11 +1163,13 @@ func drawSummarySection(gtx layout.Context, th *material.Theme, state *uiState) 
 			return drawSummaryLine(gtx, th, "P", "Proveedor", state.selectedProvider, category)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		// Fila de resumen del Modelo.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			meta := getModelMetaDescription(state.selectedProvider, state.selectedModel)
 			return drawSummaryLine(gtx, th, "M", "Modelo", state.selectedModel, meta)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		// Fila de resumen de la Autenticación.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			secretPath := "none"
 			if entry, ok := state.providersConf.Providers[state.selectedProvider]; ok && entry.SecretRef != "" {
@@ -1032,10 +1180,16 @@ func drawSummarySection(gtx layout.Context, th *material.Theme, state *uiState) 
 	)
 }
 
+// drawSummaryLine dibuja una tarjeta de fila de datos del panel de resumen (altura fija 46 Dp).
+// Ocupa todo el ancho del panel y muestra:
+// - El título en mayúsculas de la categoría (ej. "PROVEEDOR").
+// - El valor configurado (ej. "openai").
+// - Un texto secundario explicativo o ruta del secreto (ej. "keyring:openai_api_key").
 func drawSummaryLine(gtx layout.Context, th *material.Theme, icon, title, val, sub string) layout.Dimensions {
 	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 	cardRect.Max.Y = gtx.Dp(46)
 	shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+	// Pinta fondo negro sutil y borde translúcido para estructurar el renglón.
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
 		Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
@@ -1046,16 +1200,19 @@ func drawSummaryLine(gtx layout.Context, th *material.Theme, icon, title, val, s
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					// Subtítulo pequeño de la propiedad (ej. "MODELO").
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(9), strings.ToUpper(title))
 						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
 						return lbl.Layout(gtx)
 					}),
+					// Valor seleccionado (ej: "gpt-4o").
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(11), val)
 						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
 						return lbl.Layout(gtx)
 					}),
+					// Información adicional secundaria (ej. "Rápido · Económico").
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(8), sub)
 						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 100}
@@ -1067,24 +1224,33 @@ func drawSummaryLine(gtx layout.Context, th *material.Theme, icon, title, val, s
 	})
 }
 
+// drawMetricsSection dibuja el bloque de métricas dentro de la Columna 3.
+// Obtiene el modo de facturación (Billing) y el modo de ejecución (Runtime) del proveedor,
+// y renderiza dos tarjetas (Metric Cards) dispuestas horizontalmente lado a lado.
 func drawMetricsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	billing, runtime := getBillingAndRuntimeMode(state.selectedProvider, state.selectedAuthMode, state.providersConf)
 
 	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		// Tarjeta de Facturación/Billing a la izquierda.
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return drawMetricCard(gtx, th, "Billing", billing)
 		}),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+		// Tarjeta de Ejecución/Runtime a la derecha.
 		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 			return drawMetricCard(gtx, th, "Runtime", runtime)
 		}),
 	)
 }
 
+// drawMetricCard dibuja una tarjeta de métrica individual (52 Dp de altura).
+// Muestra el título superior (ej. "BILLING" o "RUNTIME")
+// y el valor correspondiente en formato destacado (ej. "pay_as_you_go" o "local_runtime").
 func drawMetricCard(gtx layout.Context, th *material.Theme, title, val string) layout.Dimensions {
 	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 	cardRect.Max.Y = gtx.Dp(52)
 	shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+	// Fondo gris oscuro y contorno fino translúcido de la tarjeta.
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
 	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
 		Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
@@ -1093,12 +1259,14 @@ func drawMetricCard(gtx layout.Context, th *material.Theme, title, val string) l
 
 	return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			// Etiqueta superior del tipo de métrica.
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, unit.Sp(9), strings.ToUpper(title))
 				lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
 				return lbl.Layout(gtx)
 			}),
 			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+			// Valor de la métrica (ej. "subscription" o "direct_api").
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				lbl := material.Label(th, unit.Sp(12), val)
 				lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
@@ -1108,21 +1276,32 @@ func drawMetricCard(gtx layout.Context, th *material.Theme, title, val string) l
 	})
 }
 
+// drawActionsSection dibuja la botonera final de control y estado de la Columna 3.
+// Contiene:
+// - Fila de botones:
+//   - "TEST": Realiza un ping/llamado RPC al Daemon central para comprobar si responde.
+//   - "APLICAR": Guarda los cambios locales de configuración en el disco y calienta la recarga en el Daemon.
+// - Etiqueta intermedia: Muestra el estado actual del proceso ("Working...", "Ping: OK", etc.).
+// - Caja inferior: Un indicador verde de estado final ("Listo · Ajustes de RBot cargados.").
 func drawActionsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		// Fila de botones de acción principales.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				// Botón de TEST de comunicación RPC.
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return material.Clickable(gtx, &state.testBtn, func(gtx layout.Context) layout.Dimensions {
 						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 						cardRect.Max.Y = gtx.Dp(32)
 						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						// Fondo gris translúcido con borde cian brillante.
 						paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 11}, shape)
 						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 100}, clip.Stroke{
 							Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
 							Width: 1,
 						}.Op())
 
+						// Centra la etiqueta del botón "TEST".
 						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(th, unit.Sp(11), "⟲ TEST")
 							lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
@@ -1131,13 +1310,16 @@ func drawActionsSection(gtx layout.Context, th *material.Theme, state *uiState) 
 					})
 				}),
 				layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+				// Botón "APLICAR" para almacenar la configuración.
 				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 					return material.Clickable(gtx, &state.saveBtn, func(gtx layout.Context) layout.Dimensions {
 						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 						cardRect.Max.Y = gtx.Dp(32)
 						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						// Relleno de color verde neón brillante.
 						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, shape)
 
+						// Centra el texto del botón "APLICAR".
 						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							lbl := material.Label(th, unit.Sp(11), "✦ APLICAR")
 							lbl.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
@@ -1148,12 +1330,14 @@ func drawActionsSection(gtx layout.Context, th *material.Theme, state *uiState) 
 			)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		// Texto dinámico para mostrar el estado de la última tarea asíncrona lanzada.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			lbl := material.Label(th, unit.Sp(10), state.snapshot())
 			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
 			return lbl.Layout(gtx)
 		}),
 		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		// Caja inferior estática con indicador verde de éxito / preparación.
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			cardRect := image.Rectangle{Max: gtx.Constraints.Max}
 			cardRect.Max.Y = gtx.Dp(38)
@@ -1164,13 +1348,16 @@ func drawActionsSection(gtx layout.Context, th *material.Theme, state *uiState) 
 				Width: 1,
 			}.Op())
 
+			// Margen interno y distribución horizontal para el icono check verde y mensaje de cargado.
 			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					// Check "✓" en verde neón.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(12), "✓")
 						lbl.Color = color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}
 						return lbl.Layout(gtx)
 					}),
+					// Texto descriptivo.
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						lbl := material.Label(th, unit.Sp(10), " Listo · Ajustes de RBot cargados.")
 						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 200}
