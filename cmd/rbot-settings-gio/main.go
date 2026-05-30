@@ -6,13 +6,12 @@ import (
 	"image"
 	"image/color"
 	"log"
-	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"gioui.org/app"
 	"gioui.org/layout"
@@ -34,7 +33,6 @@ type uiState struct {
 	mu      sync.Mutex
 	status  string
 	busy    bool
-	phase   float64
 	errText string
 
 	// Selected states
@@ -47,8 +45,13 @@ type uiState struct {
 	authModeClicks map[string]*widget.Clickable
 	modelClicks    map[string]*widget.Clickable
 
+	// Scrollable lists
+	providerList layout.List
+	modelList    layout.List
+
 	// Form controllers
-	apiKeyEditor widget.Editor
+	apiKeyEditor      widget.Editor
+	modelSearchEditor widget.Editor
 
 	// Action buttons
 	loginBtn widget.Clickable
@@ -62,14 +65,40 @@ type uiState struct {
 }
 
 func main() {
+	if os.Getenv("DRI_PRIME") == "0" {
+		execPath, err := os.Executable()
+		if err == nil {
+			os.Unsetenv("DRI_PRIME")
+			cmd := exec.Command(execPath, os.Args[1:]...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			env := os.Environ()
+			var newEnv []string
+			for _, e := range env {
+				if !strings.HasPrefix(e, "DRI_PRIME=") {
+					newEnv = append(newEnv, e)
+				}
+			}
+			cmd.Env = newEnv
+			if err := cmd.Run(); err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					os.Exit(exitErr.ExitCode())
+				}
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+	}
+
 	go func() {
-		var w app.Window
+		w := new(app.Window)
 		w.Option(
 			app.Title("RBot Settings Panel"),
-			app.Size(unit.Dp(800), unit.Dp(600)),
+			app.Size(unit.Dp(1000), unit.Dp(700)),
 			app.Decorated(true),
 		)
-		if err := loop(&w); err != nil {
+		if err := loop(w); err != nil {
 			log.Printf("UI closed with error: %v", err)
 		}
 		os.Exit(0)
@@ -102,6 +131,9 @@ func initUIState() *uiState {
 	}
 
 	state.apiKeyEditor.SingleLine = true
+	state.modelSearchEditor.SingleLine = true
+	state.providerList.Axis = layout.Vertical
+	state.modelList.Axis = layout.Vertical
 
 	// Pre-populate clickables
 	for _, p := range []string{"ollama", "openai", "anthropic", "google_gemini", "openrouter", "deepseek"} {
@@ -165,37 +197,23 @@ func (s *uiState) loadSecretPlaceholder(secretRef string) {
 
 func loop(w *app.Window) error {
 	th := material.NewTheme()
-	th.Palette.Bg = color.NRGBA{R: 0x05, G: 0x0A, B: 0x18, A: 0xFF} // Sleek cyber dark
-	th.Palette.Fg = color.NRGBA{R: 0xE2, G: 0xEE, B: 0xFF, A: 0xFF}
-	th.Palette.ContrastBg = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF} // Neon cyan
+	th.Palette.Bg = color.NRGBA{R: 0x01, G: 0x02, B: 0x04, A: 0xFF} // var(--bg)
+	th.Palette.Fg = color.NRGBA{R: 0xEA, G: 0xFF, B: 0xFF, A: 0xFF} // var(--text)
+	th.Palette.ContrastBg = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF} // var(--cyan)
 	th.Palette.ContrastFg = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
-	th.TextSize = unit.Sp(15)
+	th.TextSize = unit.Sp(14)
 
 	state := initUIState()
 	var ops op.Ops
-
-	// Micro-animation timer
-	go func() {
-		t := time.NewTicker(40 * time.Millisecond)
-		defer t.Stop()
-		for range t.C {
-			state.mu.Lock()
-			state.phase = math.Mod(state.phase+0.02, 1)
-			state.mu.Unlock()
-			w.Invalidate()
-		}
-	}()
 
 	for {
 		switch e := w.Event().(type) {
 		case app.DestroyEvent:
 			return e.Err
 		case app.FrameEvent:
+			log.Println("DEBUG: FrameEvent received")
 			gtx := app.NewContext(&ops, e)
 			paint.Fill(gtx.Ops, th.Palette.Bg)
-			phase := state.phaseValue()
-
-
 
 			// Handle provider click
 			for pName, click := range state.providerClicks {
@@ -263,7 +281,6 @@ func loop(w *app.Window) error {
 					// Save token in Keyring
 					err = keyring.Set("rbot", provName+"_session", token)
 					if err != nil {
-						// Fallback to storing as plain session
 						log.Printf("Keyring not available: %v. Storing token as plain text ref.", err)
 						state.setStatus("Sesión recibida (guardada temporalmente)")
 					} else {
@@ -303,21 +320,17 @@ func loop(w *app.Window) error {
 
 					if keyInput != "" {
 						if strings.HasPrefix(keyInput, "[Clave guardada") {
-							// Kept placeholder, load previous
 							if entry, ok := state.providersConf.Providers[state.selectedProvider]; ok {
 								finalSecretRef = entry.SecretRef
 							}
 						} else if strings.HasPrefix(keyInput, "[Variable de entorno:") {
-							// Kept env placeholder
 							if entry, ok := state.providersConf.Providers[state.selectedProvider]; ok {
 								finalSecretRef = entry.SecretRef
 							}
 						} else {
-							// Raw key input, resolve prefix/scheme
 							if strings.HasPrefix(keyInput, "env:") || strings.HasPrefix(keyInput, "plain:") || strings.HasPrefix(keyInput, "keyring:") {
 								finalSecretRef = keyInput
 							} else {
-								// Save to system keyring
 								accountName := state.selectedProvider + "_api_key"
 								err := keyring.Set("rbot", accountName, keyInput)
 								if err != nil {
@@ -330,12 +343,10 @@ func loop(w *app.Window) error {
 						}
 					}
 
-					// Set browser oauth session reference if selected
 					if state.selectedAuthMode == "browser_oauth" && finalSecretRef == "" {
 						finalSecretRef = "keyring:" + state.selectedProvider + "_session"
 					}
 
-					// Update providers entry
 					entry, ok := state.providersConf.Providers[state.selectedProvider]
 					if !ok {
 						entry = config.ProviderEntry{Enabled: true}
@@ -346,14 +357,12 @@ func loop(w *app.Window) error {
 					entry.DefaultModel = state.selectedModel
 					entry.Model = state.selectedModel
 
-					// Add capability information
 					billingMode, runtimeMode := getBillingAndRuntimeMode(state.selectedProvider, state.selectedAuthMode, state.providersConf)
 					entry.BillingMode = billingMode
 					entry.RuntimeMode = runtimeMode
 
 					state.providersConf.Providers[state.selectedProvider] = entry
 
-					// Update active selectors
 					state.providersConf.ActiveProfile = ""
 					state.providersConf.ActiveProvider = state.selectedProvider
 					state.providersConf.ActiveModel = state.selectedModel
@@ -364,7 +373,6 @@ func loop(w *app.Window) error {
 						AuthProfile: "",
 					}
 
-					// Write providers.yaml
 					provPath := resolveProvidersPath(state.configPath, state.conf.Providers.ConfigFile)
 					err := config.SaveProvidersConfig(provPath, state.providersConf)
 					if err != nil {
@@ -373,7 +381,6 @@ func loop(w *app.Window) error {
 						return
 					}
 
-					// Write rbot.yaml
 					state.conf.Providers.ActiveProfile = ""
 					state.conf.Providers.ActiveProvider = state.selectedProvider
 					state.conf.Providers.ActiveModel = state.selectedModel
@@ -402,7 +409,6 @@ func loop(w *app.Window) error {
 						return
 					}
 
-					// Apply config change via IPC
 					socket := db.ExpandPath(state.conf.Runtime.SocketPath)
 					params := map[string]any{"name": ""}
 					_, err = ipc.SendCommandRPC(socket, "profiles.use", params, "profiles-use-req")
@@ -416,240 +422,820 @@ func loop(w *app.Window) error {
 				}()
 			}
 
-			// RENDER THE VIEW LAYOUT
-			layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					// Header
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return material.H5(th, "✦ RBot Settings Panel").Layout(gtx)
-							}),
-							layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return liveBadge(gtx, th, phase)
-							}),
-						)
-					}),
-					layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
-
-					// Main deck split in two columns
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			// RENDER VISUAL LAYOUT
+			layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				// Header / Topbar
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					gtx.Constraints.Max.Y = gtx.Dp(64)
+					gtx.Constraints.Min.Y = gtx.Dp(64)
+					return drawTopbar(gtx, th)
+				}),
+				// Shell Columns
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 							// Column 1: Providers Sidebar
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								gtx.Constraints.Max.X = gtx.Dp(240)
-								return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-									// Provider selector list
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-										return material.Overline(th, "◆ PROVEEDORES").Layout(gtx)
-									}),
-									layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
-									layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-										list := []string{"ollama", "openai", "anthropic", "google_gemini", "openrouter", "deepseek"}
-										children := make([]layout.FlexChild, 0, len(list))
-										for _, name := range list {
-											name := name
-											lbl := strings.ToUpper(name)
-											if state.selectedProvider == name {
-												lbl = "◀ " + lbl
-											}
-											btn := state.providerClicks[name]
-											children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-												return layout.Inset{Bottom: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-													return material.Button(th, btn, lbl).Layout(gtx)
-												})
-											}))
-										}
-										return layout.Flex{Axis: layout.Vertical}.Layout(gtx, children...)
-									}),
-								)
+								gtx.Constraints.Min.X = gtx.Dp(240)
+								return drawLeftColumn(gtx, th, state)
 							}),
-
-							layout.Rigid(layout.Spacer{Width: unit.Dp(16)}.Layout),
-
-							// Column 2: Provider Capabilities & Authentication Config
+							layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+							// Column 2: Credentials & Model lists
 							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								cardRect := image.Rectangle{Max: gtx.Constraints.Max}
-								card := clip.UniformRRect(cardRect, 12).Push(gtx.Ops)
-								paint.Fill(gtx.Ops, color.NRGBA{R: 0x0D, G: 0x14, B: 0x2A, A: 0xFF}) // translucent panel
-								card.Pop()
-
-								return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-									billing, runtime := getBillingAndRuntimeMode(state.selectedProvider, state.selectedAuthMode, state.providersConf)
-									authModes := getAuthModesForProvider(state.selectedProvider, state.providersConf)
-									models := getModelsForProvider(state.selectedProvider, state.providersConf)
-
-									return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-										// Title provider details
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											title := "Configuración de " + strings.Title(state.selectedProvider)
-											return material.H6(th, title).Layout(gtx)
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
-
-										// Read-only Capability badges
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-												layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-													return neonStatCard(gtx, th, "Facturación (billing_mode)", billing, accentColor(phase+0.1))
-												}),
-												layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-												layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-													return neonStatCard(gtx, th, "Ejecución (runtime_mode)", runtime, accentColor(phase+0.4))
-												}),
-											)
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
-
-										// Authentication Modes Selection
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											return material.Overline(th, "MÉTODO DE AUTENTICACIÓN (auth_mode)").Layout(gtx)
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											children := make([]layout.FlexChild, 0, len(authModes)*2)
-											for i, mode := range authModes {
-												if i > 0 {
-													children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout))
-												}
-												mode := mode
-												lbl := mode
-												if state.selectedAuthMode == mode {
-													lbl = "◉ " + mode
-												}
-												btn := state.authModeClicks[mode]
-												children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-													return material.Button(th, btn, lbl).Layout(gtx)
-												}))
-											}
-											return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
-
-										// Dynamic fields based on auth mode
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											switch state.selectedAuthMode {
-											case "api_key":
-												return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-													layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-														return material.Overline(th, "CLAVE DE API (secret_ref)").Layout(gtx)
-													}),
-													layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
-													layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-														// Render a nice single-line text input field
-														return layout.Stack{}.Layout(gtx,
-															layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-																r := image.Rectangle{Max: gtx.Constraints.Min}
-																r.Max.Y = gtx.Dp(36)
-																shape := clip.UniformRRect(r, 6).Op(gtx.Ops)
-																paint.FillShape(gtx.Ops, color.NRGBA{R: 0x14, G: 0x1E, B: 0x3C, A: 0xFF}, shape)
-																return layout.Dimensions{Size: r.Max}
-															}),
-															layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-																return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-																	return material.Editor(th, &state.apiKeyEditor, "Pegar clave aquí...").Layout(gtx)
-																})
-															}),
-														)
-													}),
-												)
-											case "browser_oauth":
-												return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-													layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-														return material.Caption(th, "Autenticación segura basada en tokens mediante el navegador web (OAuth/PKCE).").Layout(gtx)
-													}),
-													layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
-													layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-														return material.Button(th, &state.loginBtn, "Iniciar sesión con navegador").Layout(gtx)
-													}),
-												)
-											case "none":
-												return material.Caption(th, "Este modo no requiere credenciales externas.").Layout(gtx)
-											default:
-												return material.Caption(th, fmt.Sprintf("Módulo autenticado de forma pasiva mediante: %s", state.selectedAuthMode)).Layout(gtx)
-											}
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
-
-										// Models List Selection
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											return material.Overline(th, "MODELO ACTIVO (model_id)").Layout(gtx)
-										}),
-										layout.Rigid(layout.Spacer{Height: unit.Dp(6)}.Layout),
-										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-											children := make([]layout.FlexChild, 0, len(models)*2)
-											for i, modelID := range models {
-												if i > 0 {
-													children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout))
-												}
-												modelID := modelID
-												lbl := modelID
-												if state.selectedModel == modelID {
-													lbl = "✓ " + modelID
-												}
-												btn, ok := state.modelClicks[modelID]
-												if !ok {
-													btn = new(widget.Clickable)
-													state.modelClicks[modelID] = btn
-												}
-												children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-													return material.Button(th, btn, lbl).Layout(gtx)
-												}))
-											}
-											return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
-										}),
-									)
-								})
+								return drawCenterColumn(gtx, th, state)
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(12)}.Layout),
+							// Column 3: Summary, Metrics, Actions
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Max.X = gtx.Dp(280)
+								gtx.Constraints.Min.X = gtx.Dp(280)
+								return drawRightColumn(gtx, th, state)
 							}),
 						)
-					}),
-					layout.Rigid(layout.Spacer{Height: unit.Dp(16)}.Layout),
+					})
+				}),
+			)
 
-					// Footer with status messaging and main actions
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-								return material.Caption(th, "Estado: "+state.snapshot()).Layout(gtx)
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return material.Button(th, &state.testBtn, "⟲ Probar Conexión").Layout(gtx)
-							}),
-							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return material.Button(th, &state.saveBtn, "➜ Guardar y Aplicar").Layout(gtx)
-							}),
-						)
-					}),
-				)
-			})
-
+			log.Println("DEBUG: Calling e.Frame")
 			e.Frame(gtx.Ops)
+			log.Println("DEBUG: e.Frame returned")
 		}
 	}
 }
 
-func colorBlock(gtx layout.Context, c color.NRGBA, size image.Point) layout.Dimensions {
-	shape := clip.UniformRRect(image.Rectangle{Max: size}, 3).Op(gtx.Ops)
-	paint.FillShape(gtx.Ops, c, shape)
-	return layout.Dimensions{Size: size}
-}
-
-func neonStatCard(gtx layout.Context, th *material.Theme, title, value string, accent color.NRGBA) layout.Dimensions {
-	// Restrict box constraints to render a nice compact tag
-	gtx.Constraints.Max.X = gtx.Dp(240)
-	gtx.Constraints.Max.Y = gtx.Dp(52)
+func drawTopbar(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	log.Println("DEBUG: drawTopbar start")
+	defer log.Println("DEBUG: drawTopbar end")
 	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
-	stack := clip.UniformRRect(cardRect, 6).Push(gtx.Ops)
-	paint.Fill(gtx.Ops, color.NRGBA{R: 0x12, G: 0x1A, B: 0x35, A: 0xFF})
-	stack.Pop()
-	paint.FillShape(gtx.Ops, accent, clip.UniformRRect(image.Rect(0, 0, 4, cardRect.Dy()), 2).Op(gtx.Ops))
-	return layout.Inset{Top: unit.Dp(6), Left: unit.Dp(10), Right: unit.Dp(10), Bottom: unit.Dp(6)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Caption(th, title).Layout(gtx) }),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions { return material.Body2(th, value).Layout(gtx) }),
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 5, G: 5, B: 5, A: 255}, clip.Rect(cardRect).Op())
+
+	return layout.UniformInset(unit.Dp(14)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle, Spacing: layout.SpaceBetween}.Layout(gtx,
+			// Brand Logo & Title
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return drawBrandLogo(gtx, th)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(14)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(th, unit.Sp(16), "Ajustes Rbot")
+								lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 255}
+								return lbl.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								lbl := material.Label(th, unit.Sp(9), "RBot Settings · Provider Control HUD")
+								lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+								return lbl.Layout(gtx)
+							}),
+						)
+					}),
+				)
+			}),
+			// Status indicator & Window controls
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return drawTopStatus(gtx, th)
+					}),
+					layout.Rigid(layout.Spacer{Width: unit.Dp(18)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return drawWindowBtn(gtx, th, "—", false)
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return drawWindowBtn(gtx, th, "□", false)
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return drawWindowBtn(gtx, th, "×", true)
+							}),
+						)
+					}),
+				)
+			}),
 		)
 	})
+}
+
+func drawBrandLogo(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	size := gtx.Dp(36)
+	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 6).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 255}, shape)
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, unit.Sp(15), "AI")
+		lbl.Color = color.NRGBA{R: 0x00, G: 0x10, B: 0x18, A: 0xFF}
+		return lbl.Layout(gtx)
+	})
+}
+
+func drawTopStatus(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			size := gtx.Dp(9)
+			shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 2).Op(gtx.Ops)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}, shape)
+			return layout.Dimensions{Size: image.Pt(size, size)}
+		}),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, unit.Sp(11), "CONECTADO A DAEMON")
+			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 204}
+			return lbl.Layout(gtx)
+		}),
+	)
+}
+
+func drawWindowBtn(gtx layout.Context, th *material.Theme, char string, isClose bool) layout.Dimensions {
+	size := gtx.Dp(24)
+	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, shape)
+
+	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		lbl := material.Label(th, unit.Sp(12), char)
+		if isClose {
+			lbl.Color = color.NRGBA{R: 255, G: 90, B: 120, A: 230}
+		} else {
+			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+		}
+		return lbl.Layout(gtx)
+	})
+}
+
+func drawPanel(gtx layout.Context, th *material.Theme, title string, content layout.Widget) layout.Dimensions {
+	return layout.Stack{}.Layout(gtx,
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			cardRect := image.Rectangle{Max: gtx.Constraints.Min}
+			shape := safeRRect(cardRect, 6).Op(gtx.Ops)
+			// Glassmorphic panel bg
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 66, G: 66, B: 66, A: 60}, shape)
+			// Thin line borders
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 23}, clip.Stroke{
+				Path:  safeRRect(cardRect, 6).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+			return layout.Dimensions{Size: cardRect.Max}
+		}),
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return layout.UniformInset(unit.Dp(14)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Inset{Bottom: unit.Dp(12)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(10), strings.ToUpper(title))
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+							return lbl.Layout(gtx)
+						})
+					}),
+					layout.Rigid(content),
+				)
+			})
+		}),
+	)
+}
+
+func drawLeftColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	log.Println("DEBUG: drawLeftColumn start")
+	defer log.Println("DEBUG: drawLeftColumn end")
+	return drawPanel(gtx, th, "Proveedores", func(gtx layout.Context) layout.Dimensions {
+		providers := []string{"ollama", "openai", "anthropic", "google_gemini", "openrouter", "deepseek"}
+		gtx.Constraints.Min.Y = 0
+		if gtx.Constraints.Max.Y < 0 {
+			gtx.Constraints.Max.Y = 0
+		}
+		return state.providerList.Layout(gtx, len(providers), func(gtx layout.Context, i int) layout.Dimensions {
+			name := providers[i]
+			return layout.Inset{Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return drawProviderItem(gtx, th, state, name)
+			})
+		})
+	})
+}
+
+func drawProviderItem(gtx layout.Context, th *material.Theme, state *uiState, name string) layout.Dimensions {
+	isActive := state.selectedProvider == name
+	btn := state.providerClicks[name]
+
+	return material.Clickable(gtx, btn, func(gtx layout.Context) layout.Dimensions {
+		cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+		cardRect.Max.Y = gtx.Dp(52)
+		shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+		if isActive {
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 25}, shape)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 180}, clip.Stroke{
+				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+		} else {
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 10}, shape)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
+				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+		}
+
+		return layout.UniformInset(unit.Dp(10)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				// Icon box initials
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					size := gtx.Dp(32)
+					iconShape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
+					if isActive {
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, iconShape)
+					} else {
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 20}, iconShape)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 46}, clip.Stroke{
+							Path:  safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Path(gtx.Ops),
+							Width: 1,
+						}.Op())
+					}
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(11), getProviderIconText(name))
+						if isActive {
+							lbl.Color = color.NRGBA{R: 0x00, G: 0x10, B: 0x18, A: 0xFF}
+						} else {
+							lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
+						}
+						return lbl.Layout(gtx)
+					})
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+				// Description
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(12), strings.Title(name))
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							category := "native_provider"
+							if name == "openrouter" {
+								category = "model_gateway"
+							} else if name == "ollama" {
+								category = "local_runtime"
+							}
+							lbl := material.Label(th, unit.Sp(9), category)
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+							return lbl.Layout(gtx)
+						}),
+					)
+				}),
+				// Check symbol
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return drawCheck(gtx, th, isActive)
+				}),
+			)
+		})
+	})
+}
+
+func drawCheck(gtx layout.Context, th *material.Theme, active bool) layout.Dimensions {
+	size := gtx.Dp(22)
+	shape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
+	if active {
+		paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}, shape)
+		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, unit.Sp(12), "✓")
+			lbl.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
+			return lbl.Layout(gtx)
+		})
+	} else {
+		paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 10}, shape)
+		return layout.Dimensions{Size: image.Pt(size, size)}
+	}
+}
+
+func getProviderIconText(provider string) string {
+	switch provider {
+	case "ollama":
+		return "OL"
+	case "openai":
+		return "OA"
+	case "anthropic":
+		return "CL"
+	case "google_gemini":
+		return "GM"
+	case "openrouter":
+		return "OR"
+	case "deepseek":
+		return "DS"
+	default:
+		return strings.ToUpper(provider[:2])
+	}
+}
+
+func drawCenterColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	log.Println("DEBUG: drawCenterColumn start")
+	defer log.Println("DEBUG: drawCenterColumn end")
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawPanel(gtx, th, "Autenticación y credenciales", func(gtx layout.Context) layout.Dimensions {
+				return drawAuthSection(gtx, th, state)
+			})
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return drawPanel(gtx, th, "Modelos disponibles", func(gtx layout.Context) layout.Dimensions {
+				return drawModelsSection(gtx, th, state)
+			})
+		}),
+	)
+}
+
+func drawAuthSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	authModes := getAuthModesForProvider(state.selectedProvider, state.providersConf)
+
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			children := make([]layout.FlexChild, 0, len(authModes)*2)
+			for i, mode := range authModes {
+				if i > 0 {
+					children = append(children, layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout))
+				}
+				mode := mode
+				btn := state.authModeClicks[mode]
+				isActive := state.selectedAuthMode == mode
+
+				children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					lbl := mode
+					if mode == "browser_oauth" {
+						lbl = "Iniciar sesión"
+					} else if mode == "api_key" {
+						lbl = "API Key"
+					} else if mode == "none" {
+						lbl = "Sin autenticación"
+					} else if mode == "adc" {
+						lbl = "Google Cloud"
+					} else if mode == "service_account" {
+						lbl = "Cuenta servicio"
+					}
+
+					return material.Clickable(gtx, btn, func(gtx layout.Context) layout.Dimensions {
+						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+						cardRect.Max.Y = gtx.Dp(28)
+						cardRect.Max.X = gtx.Dp(115)
+						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						if isActive {
+							paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, shape)
+						} else {
+							paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 11}, shape)
+							paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
+								Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+								Width: 1,
+							}.Op())
+						}
+
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lblVal := material.Label(th, unit.Sp(10), strings.ToUpper(lbl))
+							if isActive {
+								lblVal.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
+							} else {
+								lblVal.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+							}
+							return lblVal.Layout(gtx)
+						})
+					})
+				}))
+			}
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx, children...)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			switch state.selectedAuthMode {
+			case "api_key":
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+						cardRect.Max.Y = gtx.Dp(38)
+						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 66}, shape)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
+							Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+							Width: 1,
+						}.Op())
+
+						return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							return material.Editor(th, &state.apiKeyEditor, "Clave API (se guardará en Llavero de forma segura)").Layout(gtx)
+						})
+					}),
+					layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+								cardRect.Max.Y = gtx.Dp(32)
+								shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+								paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 60}, shape)
+								return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, unit.Sp(10), "SecretRef: "+state.apiKeyEditor.Text())
+									lbl.Color = color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}
+									return lbl.Layout(gtx)
+								})
+							}),
+						)
+					}),
+				)
+			case "browser_oauth":
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+							layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+								cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+								cardRect.Max.Y = gtx.Dp(32)
+								shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+								paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 60}, shape)
+								return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+									lbl := material.Label(th, unit.Sp(10), "SessionRef: keyring:"+state.selectedProvider+"_session")
+									lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 210}
+									return lbl.Layout(gtx)
+								})
+							}),
+							layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return material.Button(th, &state.loginBtn, "ABRIR NAVEGADOR").Layout(gtx)
+							}),
+						)
+					}),
+				)
+			case "none":
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+						cardRect.Max.Y = gtx.Dp(32)
+						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 60}, shape)
+						return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(10), "Ollama activo en base_url: http://localhost:11434")
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 210}
+							return lbl.Layout(gtx)
+						})
+					}),
+				)
+			default:
+				return material.Caption(th, "Este método está gestionado externamente.").Layout(gtx)
+			}
+		}),
+	)
+}
+
+func drawModelsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	models := getModelsForProvider(state.selectedProvider, state.providersConf)
+	query := strings.ToLower(strings.TrimSpace(state.modelSearchEditor.Text()))
+
+	filteredModels := []string{}
+	for _, mID := range models {
+		if query == "" || strings.Contains(strings.ToLower(mID), query) {
+			filteredModels = append(filteredModels, mID)
+		}
+	}
+
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+					cardRect.Max.Y = gtx.Dp(38)
+					shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+					paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 66}, shape)
+					paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
+						Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+						Width: 1,
+					}.Op())
+
+					return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						return material.Editor(th, &state.modelSearchEditor, "Filtrar modelo...").Layout(gtx)
+					})
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+					cardRect.Max.Y = gtx.Dp(38)
+					cardRect.Max.X = gtx.Dp(80)
+					shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+					paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
+					paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
+						Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+						Width: 1,
+					}.Op())
+
+					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(10), fmt.Sprintf("%d/%d", len(filteredModels), len(models)))
+						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+						return lbl.Layout(gtx)
+					})
+				}),
+			)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(10)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			gtx.Constraints.Min.Y = 0
+			gtx.Constraints.Max.Y = gtx.Dp(260)
+			return state.modelList.Layout(gtx, len(filteredModels), func(gtx layout.Context, i int) layout.Dimensions {
+				mID := filteredModels[i]
+				return layout.Inset{Bottom: unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					return drawModelItem(gtx, th, state, mID)
+				})
+			})
+		}),
+	)
+}
+
+func drawModelItem(gtx layout.Context, th *material.Theme, state *uiState, mID string) layout.Dimensions {
+	isActive := state.selectedModel == mID
+	btn, ok := state.modelClicks[mID]
+	if !ok {
+		btn = new(widget.Clickable)
+		state.modelClicks[mID] = btn
+	}
+
+	return material.Clickable(gtx, btn, func(gtx layout.Context) layout.Dimensions {
+		w := gtx.Constraints.Max.X
+		if w <= 0 {
+			w = gtx.Dp(260)
+		}
+		cardRect := image.Rectangle{Max: image.Pt(w, gtx.Dp(46))}
+		shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+		if isActive {
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 255, B: 157, A: 20}, shape)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 120}, clip.Stroke{
+				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+		} else {
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 15, G: 15, B: 15, A: 170}, shape)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 14}, clip.Stroke{
+				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+		}
+
+		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(12), mID)
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
+							return lbl.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							meta := getModelMetaDescription(state.selectedProvider, mID)
+							lbl := material.Label(th, unit.Sp(9), meta)
+							lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+							return lbl.Layout(gtx)
+						}),
+					)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return drawCheck(gtx, th, isActive)
+				}),
+			)
+		})
+	})
+}
+
+func getModelMetaDescription(provider, mID string) string {
+	switch provider {
+	case "ollama":
+		return "Local · General"
+	case "openrouter":
+		if strings.Contains(mID, "free") {
+			return "Gratis · Enrutado automático"
+		}
+		return "Pago · Enrutamiento compatible"
+	case "openai":
+		if strings.Contains(mID, "mini") {
+			return "Rápido · Económico"
+		}
+		return "Multimodal · Avanzado"
+	case "anthropic":
+		return "Preciso · Computación y código"
+	case "google_gemini":
+		return "Multimodal · Respuesta ultra rápida"
+	default:
+		return "Compatible · Proveedor de IA"
+	}
+}
+
+func drawRightColumn(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	log.Println("DEBUG: drawRightColumn start")
+	defer log.Println("DEBUG: drawRightColumn end")
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawPanel(gtx, th, "Configuracion activa", func(gtx layout.Context) layout.Dimensions {
+				return drawSummarySection(gtx, th, state)
+			})
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawPanel(gtx, th, "Métricas", func(gtx layout.Context) layout.Dimensions {
+				return drawMetricsSection(gtx, th, state)
+			})
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(12)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return drawPanel(gtx, th, "Acciones", func(gtx layout.Context) layout.Dimensions {
+				return drawActionsSection(gtx, th, state)
+			})
+		}),
+	)
+}
+
+func drawSummarySection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			category := "native_provider"
+			if state.selectedProvider == "openrouter" {
+				category = "model_gateway"
+			} else if state.selectedProvider == "ollama" {
+				category = "local_runtime"
+			}
+			return drawSummaryLine(gtx, th, "P", "Proveedor", state.selectedProvider, category)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			meta := getModelMetaDescription(state.selectedProvider, state.selectedModel)
+			return drawSummaryLine(gtx, th, "M", "Modelo", state.selectedModel, meta)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			secretPath := "none"
+			if entry, ok := state.providersConf.Providers[state.selectedProvider]; ok && entry.SecretRef != "" {
+				secretPath = entry.SecretRef
+			}
+			return drawSummaryLine(gtx, th, "A", "Autenticación", state.selectedAuthMode, secretPath)
+		}),
+	)
+}
+
+func drawSummaryLine(gtx layout.Context, th *material.Theme, icon, title, val, sub string) layout.Dimensions {
+	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+	cardRect.Max.Y = gtx.Dp(46)
+	shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
+		Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+		Width: 1,
+	}.Op())
+
+	return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				size := gtx.Dp(32)
+				iconShape := safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Op(gtx.Ops)
+				paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 20}, iconShape)
+				paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 36}, clip.Stroke{
+					Path:  safeRRect(image.Rectangle{Max: image.Pt(size, size)}, 4).Path(gtx.Ops),
+					Width: 1,
+				}.Op())
+				return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+					lbl := material.Label(th, unit.Sp(12), icon)
+					lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
+					return lbl.Layout(gtx)
+				})
+			}),
+			layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
+			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(9), strings.ToUpper(title))
+						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(11), val)
+						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(8), sub)
+						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 100}
+						return lbl.Layout(gtx)
+					}),
+				)
+			}),
+		)
+	})
+}
+
+func drawMetricsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	billing, runtime := getBillingAndRuntimeMode(state.selectedProvider, state.selectedAuthMode, state.providersConf)
+
+	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return drawMetricCard(gtx, th, "Billing", billing)
+		}),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+		layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+			return drawMetricCard(gtx, th, "Runtime", runtime)
+		}),
+	)
+}
+
+func drawMetricCard(gtx layout.Context, th *material.Theme, title, val string) layout.Dimensions {
+	cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+	cardRect.Max.Y = gtx.Dp(52)
+	shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
+	paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
+		Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+		Width: 1,
+	}.Op())
+
+	return layout.UniformInset(unit.Dp(6)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, unit.Sp(9), strings.ToUpper(title))
+				lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+				return lbl.Layout(gtx)
+			}),
+			layout.Rigid(layout.Spacer{Height: unit.Dp(4)}.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				lbl := material.Label(th, unit.Sp(12), val)
+				lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 224}
+				return lbl.Layout(gtx)
+			}),
+		)
+	})
+}
+
+func drawActionsSection(gtx layout.Context, th *material.Theme, state *uiState) layout.Dimensions {
+	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return material.Clickable(gtx, &state.testBtn, func(gtx layout.Context) layout.Dimensions {
+						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+						cardRect.Max.Y = gtx.Dp(32)
+						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 11}, shape)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 245, B: 255, A: 100}, clip.Stroke{
+							Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+							Width: 1,
+						}.Op())
+
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(11), "⟲ TEST")
+							lbl.Color = color.NRGBA{R: 0x00, G: 0xF5, B: 0xFF, A: 0xFF}
+							return lbl.Layout(gtx)
+						})
+					})
+				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(8)}.Layout),
+				layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
+					return material.Clickable(gtx, &state.saveBtn, func(gtx layout.Context) layout.Dimensions {
+						cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+						cardRect.Max.Y = gtx.Dp(32)
+						shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+						paint.FillShape(gtx.Ops, color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 255}, shape)
+
+						return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+							lbl := material.Label(th, unit.Sp(11), "✦ APLICAR")
+							lbl.Color = color.NRGBA{R: 0x02, G: 0x05, B: 0x0B, A: 0xFF}
+							return lbl.Layout(gtx)
+						})
+					})
+				}),
+			)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			lbl := material.Label(th, unit.Sp(10), state.snapshot())
+			lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 148}
+			return lbl.Layout(gtx)
+		}),
+		layout.Rigid(layout.Spacer{Height: unit.Dp(8)}.Layout),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			cardRect := image.Rectangle{Max: gtx.Constraints.Max}
+			cardRect.Max.Y = gtx.Dp(38)
+			shape := safeRRect(cardRect, 4).Op(gtx.Ops)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 0, G: 0, B: 0, A: 56}, shape)
+			paint.FillShape(gtx.Ops, color.NRGBA{R: 255, G: 255, B: 255, A: 13}, clip.Stroke{
+				Path:  safeRRect(cardRect, 4).Path(gtx.Ops),
+				Width: 1,
+			}.Op())
+
+			return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(12), "✓")
+						lbl.Color = color.NRGBA{R: 0x00, G: 0xFF, B: 0x9D, A: 0xFF}
+						return lbl.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						lbl := material.Label(th, unit.Sp(10), " Listo · Ajustes de RBot cargados.")
+						lbl.Color = color.NRGBA{R: 234, G: 255, B: 255, A: 200}
+						return lbl.Layout(gtx)
+					}),
+				)
+			})
+		}),
+	)
 }
 
 func resolveConfigPath() string {
@@ -672,13 +1258,7 @@ func resolveProvidersPath(configPath, providersPath string) string {
 	return filepath.Join(baseDir, filepath.Base(providersPath))
 }
 
-func accentColor(phase float64) color.NRGBA {
-	p := math.Mod(phase, 1)
-	r := uint8(10 + 40*math.Abs(math.Sin((p+0.0)*math.Pi*2)))
-	g := uint8(180 + 75*math.Abs(math.Sin((p+0.33)*math.Pi*2)))
-	b := uint8(220 + 35*math.Abs(math.Sin((p+0.66)*math.Pi*2)))
-	return color.NRGBA{R: r, G: g, B: b, A: 0xFF}
-}
+
 
 func (s *uiState) setStatus(v string) {
 	s.mu.Lock()
@@ -706,11 +1286,6 @@ func (s *uiState) isBusy() bool {
 	return s.busy
 }
 
-func (s *uiState) phaseValue() float64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.phase
-}
 
 func (s *uiState) snapshot() string {
 	s.mu.Lock()
@@ -724,16 +1299,6 @@ func (s *uiState) snapshot() string {
 	return s.status
 }
 
-func liveBadge(gtx layout.Context, th *material.Theme, phase float64) layout.Dimensions {
-	accent := accentColor(phase + 0.2)
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions { return colorBlock(gtx, accent, image.Pt(8, 8)) }),
-		layout.Rigid(layout.Spacer{Width: unit.Dp(6)}.Layout),
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return material.Caption(th, "SYSTEM OPERATIONAL / DECK").Layout(gtx)
-		}),
-	)
-}
 
 func getModelsForProvider(provider string, providersConf *config.ProvidersConfig) []string {
 	var list []string
@@ -821,4 +1386,36 @@ func getBillingAndRuntimeMode(provider, authMode string, providersConf *config.P
 	default:
 		return "none", "direct_api"
 	}
+}
+
+func colorBlock(gtx layout.Context, c color.NRGBA, size image.Point) layout.Dimensions {
+	shape := safeRRect(image.Rectangle{Max: size}, 3).Op(gtx.Ops)
+	paint.FillShape(gtx.Ops, c, shape)
+	return layout.Dimensions{Size: size}
+}
+
+func safeRRect(rect image.Rectangle, radii int) clip.RRect {
+	if rect.Max.X < rect.Min.X {
+		rect.Max.X = rect.Min.X
+	}
+	if rect.Max.Y < rect.Min.Y {
+		rect.Max.Y = rect.Min.Y
+	}
+	w := rect.Max.X - rect.Min.X
+	h := rect.Max.Y - rect.Min.Y
+	if w <= 0 || h <= 0 {
+		return clip.UniformRRect(image.Rectangle{}, 0)
+	}
+	maxRadii := w / 2
+	if h / 2 < maxRadii {
+		maxRadii = h / 2
+	}
+	r := radii
+	if r > maxRadii {
+		r = maxRadii
+	}
+	if r < 0 {
+		r = 0
+	}
+	return clip.UniformRRect(rect, r)
 }

@@ -324,9 +324,9 @@ providers:
                 default: true
                 pricing: free
                 capabilities:
-                    toolcalling: dynamic
+                    toolcalling: true
                     streaming: true
-                    vision: dynamic
+                    vision: true
                     conversationstate: true
             google/gemini-2.5-flash:
                 id: google/gemini-2.5-flash
